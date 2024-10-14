@@ -15,7 +15,7 @@
                 <p>radar chart</p>
             </div>
             <div class="info-table">
-                <p>table</p>
+                <p>this is table</p>
             </div>
         </div>
     </div>
