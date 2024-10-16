@@ -1,5 +1,5 @@
 <script setup>
-
+import Map from './map.vue'
 </script>
 
 <template>
@@ -8,7 +8,7 @@
             GeoVis
         </div>
         <div class="map-container">
-            <p>map</p>
+            <Map/>
         </div>
         <div class="info-container">
             <div class="info-radar">
@@ -43,6 +43,8 @@
     grid-row:span 2;
     border:2px solid #b5b5b5;
     box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+    width: 100%;
+    height: 100%;
 }
 .info-container{
     grid-column:2;
