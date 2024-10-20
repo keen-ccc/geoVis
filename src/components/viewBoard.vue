@@ -1,5 +1,5 @@
 <script setup>
-
+import detailTable from "./detailTable.vue"
 </script>
 
 <template>
@@ -16,6 +16,7 @@
             </div>
             <div class="info-table">
                 <p>table</p>
+                <detailTable></detailTable>
             </div>
         </div>
     </div>
@@ -58,5 +59,7 @@
 .info-table{
     border:2px solid #b5b5b5;
     box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+    overflow-y: scroll;
+    max-height: 100%;
 }
 </style>
