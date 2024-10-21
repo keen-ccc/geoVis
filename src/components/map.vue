@@ -48,7 +48,7 @@ onMounted(()=>{
     poiData = data.map((d) => {
         return [d.lat, d.lon]
     })
-    heatmapLayer.value = L.heatLayer(poiData, {radius: 20, blur: 20, maxZoom: 10,gradient:{0.4: 'blue', 0.6: 'cyan', 0.7: 'lime', 0.8: 'yellow', 1: 'red'}})
+    heatmapLayer.value = L.heatLayer(poiData, {radius: 20, blur: 20, maxZoom: 10,gradient:{0.5: '#89dae8', 0.6: '#87eedc', 0.7: '#81ea8f', 0.8: '#eef48e', 0.9: '#fac581',1:'#ec9073'}})
     createMap()
     })
 })
