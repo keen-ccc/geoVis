@@ -1,6 +1,7 @@
 <script setup>
 import detailTable from "./detailTable.vue"
 import Map from './map.vue'
+import radarChart from './radarChart.vue'
 </script>
 
 <template>
@@ -13,7 +14,7 @@ import Map from './map.vue'
         </div>
         <div class="info-container">
             <div class="info-radar">
-                <p>radar chart</p>
+                <radarChart></radarChart>
             </div>
             <div class="info-table">
                 <p>table</p>
@@ -28,7 +29,7 @@ import Map from './map.vue'
     height: 100vh;
     width: 100%;
     display:grid;
-    grid-template-columns: 3fr 1fr;
+    grid-template-columns: 5fr 3fr;
     grid-template-rows:2rem 1fr;
 }
 .title{
@@ -52,7 +53,7 @@ import Map from './map.vue'
     grid-column:2;
     grid-row:span 2;
     display:grid;
-    grid-template-rows: 1fr 1.5fr;
+    grid-template-rows: 1fr 1fr;
     margin: 2px;
 }
 .info-radar{
