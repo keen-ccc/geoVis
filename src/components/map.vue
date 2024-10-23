@@ -12,6 +12,7 @@ const map =ref(null)
 const city = ref('成都市')
 const bankValue = ref(['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行'])
 let poiData = []
+let isOverlayAddTriggered = false
 // 图层
 let baseMapLayer = L.tileLayer('https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',{
     maxZoom: 19,
@@ -33,10 +34,6 @@ var overlayMaps = {
 var layerControl = null
 
 const createMap = () => {
-    map.value = L.map('mapContainer', {attributionControl: false,
-    layers:[baseMapLayer]
-    }).setView(getCity(city.value), 10)
-
     // 添加图层控制
     layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map.value)
 
@@ -44,7 +41,14 @@ const createMap = () => {
     map.value.on('overlayadd',(e)=>{
         if(e.name == '兴趣点图' && bankValue.value.length !== 4){
             bankValue.value = ['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行']
-            console.log('this is test--------------------------------',bankValue.value)
+            updateDotmapLayer(poiData)
+        }
+    })
+    map.value.on('overlayremove',(e)=>{
+        if(e.name == '兴趣点图'){
+            //删除生成的svg
+            d3.select(map.value.getPanes().overlayPane).selectAll('svg').remove()
+            isOverlayAddTriggered = false
         }
     })
 
@@ -59,83 +63,103 @@ const createMap = () => {
 }
 
 const initDotmapLayer = (data) => {
-    // 移除旧图层
-    if(dotmapLayer.value){
-        console.log('remove old layer')
-        map.value.removeLayer(dotmapLayer.value)
-    }
-    dotmapLayer.value = L.layerGroup(data.map((d) => {
-        // 根据点类型返回不同颜色
-        let color 
-        if(d.type.includes('中国工商银行')){
-            color = getDotColors('中国工商银行')
-        }
-        else if(d.type.includes('中国建设银行')){
-            color = getDotColors('中国建设银行')
-        }
-        else if(d.type.includes('中国农业银行')){
-            color = getDotColors('中国农业银行')
-        }
-        else if(d.type.includes('交通银行')){
-            color = getDotColors('交通银行')
-        }
-        else{
-            //中国银行
-            color = getDotColors('中国银行')
-        }
+    dotmapLayer.value = L.layerGroup()
+    const svg = d3.select(map.value.getPanes().overlayPane).append("svg")
+    const g = svg.append("g").attr("class", "leaflet-zoom-hide")
 
-        return L.circleMarker([d.lat, d.lon], {
-            radius: 5,
-            fillColor: color,
-            color: color,
-            weight: 1,
-            opacity: 1,
-            fillOpacity: 0.8
-        }).bindPopup(d.name)
-    })
-    )
+    const transform = d3.geoTransform({point: projectPoint})
+    const path = d3.geoPath().projection(transform)
+
+    const geoData = data.map(d => ({type: "Feature", geometry: {type: "Point", coordinates: [d.lon, d.lat]}, properties: d}))
+    //console.log(geoData)
+    const feature = g.selectAll("circle")
+        .data(geoData)
+        .enter().append("circle")
+        .attr("r", 5)
+        .attr("fill", 'red')
+        .attr("stroke", d => getDotColors(d.type))
+        .attr("fill-opacity", 0.8)
+        .attr("stroke-width", 1)
+
+    map.value.on("zoomend", reset)
+    reset()
+
+    function reset() {
+        const bounds = path.bounds({type: "FeatureCollection", features: geoData})
+        const topLeft = bounds[0]
+        const bottomRight = bounds[1]
+        const width = bottomRight[0] - topLeft[0]
+        const height = bottomRight[1] - topLeft[1]
+        // 检查是否有无效值
+        if (!isFinite(width) || !isFinite(height)) {
+            console.error("Invalid bounds:", bounds)
+            return
+        }
+        svg.attr("width", width)
+            .attr("height", height)
+            .style("left", topLeft[0] + "px")
+            .style("top", topLeft[1] + "px")
+
+        g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")")
+
+        feature.attr("transform", d => {
+            //console.log(d)
+            if (d.geometry.coordinates[0] !== undefined && d.geometry.coordinates[1] !== undefined) {
+                const point = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[1], d.geometry.coordinates[0]));
+                return `translate(${point.x},${point.y})`;
+            } else {
+                console.error("Invalid LatLng object:", d);
+                return "translate(0,0)";
+            }
+        })
+    }
+
+    function projectPoint(x, y) {
+        const point = map.value.latLngToLayerPoint(new L.LatLng(y, x))
+        this.stream.point(point.x, point.y)
+    }
 }
 
 const updateDotmapLayer = (data) => {
-    // 移除旧图层
-    if(dotmapLayer.value){
-        map.value.removeLayer(dotmapLayer.value)
-    }
-    console.log(bankValue.value)
+    // 删除旧的svg
+    d3.select(map.value.getPanes().overlayPane).selectAll('svg').remove()
     // 过滤数据
     var filterData = data.filter(d => bankValue.value.some(bank => d.type.includes(bank)));
-    //console.log(filterData)
     initDotmapLayer(filterData)
-    console.log("dotmapLayer is:",dotmapLayer.value)
-    // 更新 overlayMaps
-    overlayMaps["兴趣点图"] = dotmapLayer.value;
-    dotmapLayer.value.addTo(map.value)
+    //console.log("dotmapLayer is:",dotmapLayer.value)
 }
 
 watch(city, (newCity) => {
   if (map.value && getCity(newCity)) {
     map.value.setView(getCity(newCity), 10)
-  }
-})
-watch(bankValue, (newBankValue) => {
-  if (map.value && poiData) {
-    console.log('update dotmap layer')
     updateDotmapLayer(poiData)
   }
 })
+watch(bankValue, (newBankValue) => {
+  if (map.value && poiData && bankValue.value.length > 0) {
+    updateDotmapLayer(poiData)
+  }
+  else{
+    d3.select(map.value.getPanes().overlayPane).selectAll('svg').remove()
+  }
+
+})
 
 onMounted(()=>{
+    map.value = L.map('mapContainer', {attributionControl: false,
+    layers:[baseMapLayer]
+    }).setView(getCity(city.value), 10)
     d3.csv('/jpBank.csv').then((data) => {
-        console.log(data)
+        //console.log(data)
     poiData = data.map((d) => {
         return {lat: d.lat, lon: d.lon, name: d.name, type: d.type}
     })
     heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 20, blur: 20, maxZoom: 10,gradient:{0.5: '#89dae8', 0.6: '#87eedc', 0.7: '#81ea8f', 0.8: '#eef48e', 0.9: '#fac581',1:'#ec9073'}})
-    initDotmapLayer(data)
+    initDotmapLayer(poiData)
     // 更新 overlayMaps
     overlayMaps["热力图"] = heatmapLayer.value;
     overlayMaps["兴趣点图"] = dotmapLayer.value;
-    console.log(overlayMaps)
+    //console.log(overlayMaps)
     createMap()
     })
 })
@@ -149,7 +173,7 @@ onMounted(()=>{
                 <el-option v-for="(latlon,cityname) in cities" :key="cityname" :label="cityname" :value="cityname"></el-option>
             </el-select>
             <span>选择兴趣点</span>
-            <el-select v-model="bankValue" multiple collapse-tags placeholder="Select" style="width: 20%;" >
+            <el-select v-model="bankValue" multiple collapse-tags placeholder="Select" style="width: 20%;"  >
                 <el-option v-for="(color,type) in dotColors" :key="type" :label="type" :value="type"></el-option>
             </el-select>
         </div>
