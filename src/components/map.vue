@@ -76,7 +76,23 @@ const initDotmapLayer = (data) => {
         .data(geoData)
         .enter().append("circle")
         .attr("r", 5)
-        .attr("fill", 'red')
+        .attr("fill", (d => {
+            if(d.properties && d.properties.type){
+                if (d.properties.type.includes('中国工商银行')) {
+                    return getDotColors('中国工商银行')
+                } else if (d.properties.type.includes('中国建设银行')) {
+                    return getDotColors('中国建设银行')
+                } else if (d.properties.type.includes('中国农业银行')) {
+                    return getDotColors('中国农业银行')
+                } else if (d.properties.type.includes('交通银行')) {
+                    return getDotColors('交通银行')
+                } else if (d.properties.type.includes('中国银行')) {
+                    return getDotColors('中国银行')
+                }
+            }
+            console.error("Invalid type:", d)
+
+        }))
         .attr("stroke", d => getDotColors(d.type))
         .attr("fill-opacity", 0.8)
         .attr("stroke-width", 1)
