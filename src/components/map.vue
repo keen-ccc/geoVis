@@ -170,7 +170,7 @@ onMounted(()=>{
     poiData = data.map((d) => {
         return {lat: d.lat, lon: d.lon, name: d.name, type: d.type}
     })
-    heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 20, blur: 20, maxZoom: 10,gradient:{0.5: '#89dae8', 0.6: '#87eedc', 0.7: '#81ea8f', 0.8: '#eef48e', 0.9: '#fac581',1:'#ec9073'}})
+    heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 50, blur: 35, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}})
     initDotmapLayer(poiData)
     // 更新 overlayMaps
     overlayMaps["热力图"] = heatmapLayer.value;
