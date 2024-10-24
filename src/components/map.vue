@@ -104,7 +104,6 @@ watch(city, (newCity) => {
   }
 })
 
-
 onMounted(()=>{
     d3.csv('/jpBank.csv').then((data) => {
         console.log(data)
