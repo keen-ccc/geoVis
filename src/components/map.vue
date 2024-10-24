@@ -3,16 +3,29 @@ import { ref,onMounted,watch} from 'vue'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.heat/dist/leaflet-heat.js'
+import 'vue-leaflet-sidepanel/dist/style.css';
+import { LMap, LTileLayer } from '@vue-leaflet/vue-leaflet';
+import { LSidepanel, LSidepanelTab } from 'vue-leaflet-sidepanel';
 import * as d3 from 'd3'
 //import getCity from '../utils/index.js'
 import { cities ,getCity} from '../utils/getCity.js'
 import {dotColors,getDotColors} from '../utils/getColor.js';
+import detailTable from './detailTable.vue';
 
 const map =ref(null)
 const city = ref('成都市')
 const bankValue = ref(['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行'])
 let poiData = []
-let isOverlayAddTriggered = false
+const headings = [
+    {
+        key:1,
+        value:'tab1'
+    },
+    {
+        key:2,
+        value:'tab2'
+    }
+]
 // 图层
 let baseMapLayer = L.tileLayer('https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',{
     maxZoom: 19,
@@ -66,7 +79,6 @@ const createMap = () => {
         if(e.name == '兴趣点图'){
             //删除生成的svg
             d3.select(map.value.getPanes().overlayPane).selectAll('svg').remove()
-            isOverlayAddTriggered = false
         }
     })
     createGrid()
@@ -245,7 +257,22 @@ onMounted(()=>{
                 <el-option v-for="(color,type) in dotColors" :key="type" :label="type" :value="type"></el-option>
             </el-select>
         </div>
-        <div id="mapContainer" style="height: 97%;width:100%;"></div>
+        <div id="mapContainer" style="height: 97%;width:100%;">
+            <l-sidepanel id="rightPanel" :headings tabsPosition="top" position="right">
+                <template #[`heading.1`]>
+                    网格比较
+                </template>
+                <l-sidepanel-tab link="1">
+                    <p>Content 1</p>
+                </l-sidepanel-tab>
+                <template #[`heading.2`]>
+                    市场经营主体分析
+                </template>
+                <l-sidepanel-tab link="2">
+                    <detailTable></detailTable>
+                </l-sidepanel-tab>
+            </l-sidepanel>
+        </div>
     </div>
 
 </template>
