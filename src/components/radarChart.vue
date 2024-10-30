@@ -4,10 +4,10 @@ import * as d3 from 'd3'
 import * as echarts from 'echarts';
 
 const radar = ref(null)
-const population = ref(null)
-const housePrice = ref(null)
-const poiDensity = ref(null)
-const poiDiversity = ref(null)
+const populationWeight = ref(null)
+const housePriceWeight = ref(null)
+const poiDensityWeight = ref(null)
+const poiDiversityWeight = ref(null)
 
 const createRadar = () => {
     const svgHeight = radar.value.clientHeight
@@ -118,25 +118,26 @@ onMounted(()=>{
 </script>
 
 <template>
+    <p style="font-size: 16px;font-weight:bold;margin:0.5rem">网格商业化水平详情</p>
     <div id="container">
         <div ref="radar" class="radarChart">
         </div>
         <div ref="weight" class="weight">
             <div class="sliderContainer">
                 <span>人口密度</span>
-                <el-slider v-model="population" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
+                <el-slider v-model="populationWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
             </div>
             <div class="sliderContainer">
                 <span>平均房价</span>
-                <el-slider v-model="housePrice" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
+                <el-slider v-model="housePriceWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
             </div>
             <div class="sliderContainer">
                 <span>POI密度</span>
-                <el-slider v-model="poiDensity" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
+                <el-slider v-model="poiDensityWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
             </div>
             <div class="sliderContainer">
                 <span>POI多样性</span>
-                <el-slider v-model="poiDiversity" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
+                <el-slider v-model="poiDiversityWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
             </div>
             <div class="buttonContainer">
                 <el-button color="#ecf5ff" type="primary" @click="submit">计算</el-button>
@@ -159,7 +160,7 @@ onMounted(()=>{
     width: 100%;
 }
 .weight{
-    height: 50%;
+    height: 40%;
     width: 100%;
     display: flex;
     flex-direction: row;

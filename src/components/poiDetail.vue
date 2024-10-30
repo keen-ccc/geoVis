@@ -8,37 +8,22 @@ poiData.value = [
     {
         name: 'POI1',
         address: 'address1',
-        type: 'type1',
-        location: 'location1',
-        score: 1
     },
     {
         name: 'POI2',
         address: 'address2',
-        type: 'type2',
-        location: 'location2',
-        score: 2
     },
     {
         name: 'POI3',
         address: 'address3',
-        type: 'type3',
-        location: 'location3',
-        score: 3
     },
     {
         name: 'POI4',
         address: 'address4',
-        type: 'type4',
-        location: 'location4',
-        score: 4
     },
     {
         name: 'POI5',
         address: 'address5',
-        type: 'type5',
-        location: 'location5',
-        score: 5
     }
 ]
 
