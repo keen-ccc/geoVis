@@ -12,7 +12,7 @@ import { cities ,getCity} from '../utils/getCity.js'
 import {dotColors,getDotColors} from '../utils/getColor.js';
 import detailTable from './detailTable.vue';
 import * as Cesium from 'cesium';
-import grid_data from '@/assets/grids.json'
+// import grid_data from '@/assets/grids.json'
 // import grid_data from '@/assets/grid_simple.geojson'
 // import fs from 'fs';
 // import geojsonStream from 'geojson-stream';
@@ -51,32 +51,48 @@ var baseMaps = {
 }
 var overlayMaps = {
     "热力图": heatmapLayer.value,
-    "网格图": gridLayer.value,
+    // "网格图": gridLayer.value,
     "兴趣点图": dotmapLayer.value
 }
+
+var grid_bool = 0;
 
 // const getGridData = async () => {
 //     let dataGeo = Cesium.GeoJsonDataSource.load("@/assets/grid_simple.geojson");
 //     console.log(dataGeo);
 // }
-
+const controlGridLayer = () => {
+    var zoomLevel = map.value.getZoom();
+    if (zoomLevel < 15 && grid_bool == 1) {
+        // 在缩放级别小于15时，移除图层控制器中的 Layer 3
+        layerControl.removeLayer(gridLayer.value);
+        // map.value.removeLayer(gridLayer.value);
+        grid_bool = 0;
+    } else if(zoomLevel >= 15 && grid_bool == 0){
+        // 在缩放级别大于等于15时，添加图层控制器中的 Layer 3
+        layerControl.addOverlay(gridLayer.value, "网格图");
+        map.value.addLayer(gridLayer.value)
+        grid_bool = 1;
+    }
+}
 const createMap = () => {
     // 添加图层控制
     layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map.value)
 
-    // 添加 zoomend 事件监听器
-    map.value.on('zoomend', () => {
-        // console.log("grid-----")
-        if (map.value.getZoom() >= 12) { // 假设当缩放级别 >= 12 时显示网格
-            deleteGrid()
-            updateGrid(gridData)
-            gridLayer.value.addTo(map.value);
-        } else {
-            if (gridLayer.value) {
-                deleteGrid()
-                map.value.removeLayer(gridLayer.value) // 移除网格
-                // gridLayer.value = null
-            }
+    map.value.on("zoomend", ()=>{
+        controlGridLayer()
+    })
+
+    // 监听图层切换事件
+    map.value.on('overlayadd',(e)=>{
+        if(e.name == '网格图'){
+            initGridLayer(gridData)
+        }
+    })
+    map.value.on('overlayremove',(e)=>{
+        if(e.name == '网格图'){
+            //删除生成的svg
+            d3.select("#gridSvg").selectAll("*").remove()
         }
     })
 
@@ -90,7 +106,7 @@ const createMap = () => {
     map.value.on('overlayremove',(e)=>{
         if(e.name == '兴趣点图'){
             //删除生成的svg
-            d3.select(map.value.getPanes().overlayPane).selectAll('svg').remove()
+            d3.select(map.value.getPanes().overlayPane).selectAll('#dotmapLayer').remove()
         }
     })
     // createGrid()
@@ -104,127 +120,120 @@ const createMap = () => {
     }
 }
 
-const deleteGrid = () => {
-    const svg1 = d3.select(map.value.getPanes().overlayPane).append("svg")
-    svg1.selectAll(".grids").remove()
-}
 
-// 创建网格
-const updateGrid = (data) => {
-    // if (gridLayer.value) {
-    //     gridLayer.value.clearLayers() // 清除已有网格
-    // } else {
-        
-    // }
-    // gridLayer.value = L.layerGroup() // 创建一个新的图层组
 
-    const bounds = map.value.getBounds() // 获取地图当前边界
-    const southWest = bounds.getSouthWest()
-    const northEast = bounds.getNorthEast()
-    console.log(bounds)
-    console.log(data.length)
+const initGridLayer = (data1) => {
+    // console.log("init")
+    var data = data1;
+    var svg;
+    if(d3.select("#gridSvg").empty()) {
+        svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id", "gridSvg")
+    }else {
+        svg = d3.select("#gridSvg")
+        svg.selectAll("*").remove()
+    }
     
-    const latStart = southWest.lat
-    const latEnd = northEast.lat
-    const lonStart = southWest.lng
-    const lonEnd = northEast.lng
-    const gridSize = 0.009  // 大约 1km 的网格大小（纬度和经度上的近似值）
+    var g = svg.append("g").attr("class", "leaflet-zoom-hide");
 
-    const svg1 = d3.select(map.value.getPanes().overlayPane).append("svg")
-    // svg1.selectAll(".grids").remove()
-    // const g = svg1.append("g").attr("class", "leaflet-zoom-hide");
+    var transform = d3.geoTransform({point: projectPoint}),
+    path = d3.geoPath().projection(transform);
+    
 
-    // const transform = d3.geoTransform({point: projectPoint})
-    // const path = d3.geoPath().projection(transform)
+    map.value.on("zoomend", reset)
+    map.value.on("moveend", reset)
+    reset()
 
-    // svg1.attr("width", width)
-    //         .attr("height", height)
-    //         .style("left", topLeft[0] + "px")
-    //         .style("top", topLeft[1] + "px")
+    function reset() {
+        if (map.value.getZoom() < 15) {
+            g.selectAll("*").remove()
+            return;
+        }
+        // console.log("reset")
 
-    // g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")")
-
-    const grid_size = 1000
-    const width = 0.008983111749910169
-    const height = 0.010391927140799718
-
-    // 定义两个经纬度点
-    const pointA = L.latLng(southWest.lat, southWest.lng);
-    const pointB = L.latLng(southWest.lat+height, southWest.lng+width);
-
-    // 将经纬度转换为像素坐标
-    const layerPointA = map.value.latLngToLayerPoint(pointA);
-    const layerPointB = map.value.latLngToLayerPoint(pointB);
-
-    // 计算像素跨度
-    const pixelWidth = Math.abs(layerPointB.x - layerPointA.x);
-    const pixelHeight = Math.abs(layerPointB.y - layerPointA.y);
-    console.log("width"+pixelWidth)
-    console.log("height"+pixelHeight)
-
-    var simple_data = data.filter(item => item.longitude >= lonStart-width && item.longitude <= lonEnd+width && item.latitude >= latStart-height && item.latitude <= latEnd+height)
-
-    console.log("data")
-    console.log(simple_data)
-
-    svg1.selectAll(".grids")
-        .data(simple_data)
-        .enter()
-        .append("rect")
-        .attr("class", "grids")
-        .attr("x", d => map.value.latLngToLayerPoint(new L.LatLng(d.latitude, d.longitude)).x)
-        .attr("y", d => map.value.latLngToLayerPoint(new L.LatLng(d.latitude, d.longitude)).y)
-        .attr("width", pixelWidth) // 矩形的宽度
-        .attr("height", pixelHeight) // 矩形的高度
-        .attr("fill", "red") // 填充颜色
-        .attr("fill-opacity", 0.5)
-        .attr("stroke", "black") // 边框颜色
-        .attr("stroke-width", 2); // 边框宽度
-
-    // map.value.on("zoomend", reset)
-    // reset()
-
-    // function reset() {
-    //     const bounds = path.bounds({type: "FeatureCollection", features: geoData})
-    //     const topLeft = bounds[0]
-    //     const bottomRight = bounds[1]
-    //     const width = bottomRight[0] - topLeft[0]
-    //     const height = bottomRight[1] - topLeft[1]
-    //     // 检查是否有无效值
-    //     if (!isFinite(width) || !isFinite(height)) {
-    //         console.error("Invalid bounds:", bounds)
-    //         return
-    //     }
+        const map_bounds = map.value.getBounds() // 获取地图当前边界
+        const southWest = map_bounds.getSouthWest()
+        const northEast = map_bounds.getNorthEast()
         
+        const latStart = southWest.lat   //西南
+        const latEnd = northEast.lat   //东北
+        const lonStart = southWest.lng
+        const lonEnd = northEast.lng
 
-    //     feature.attr("transform", d => {
-    //         //console.log(d)
-    //         if (d.geometry.coordinates[0] !== undefined && d.geometry.coordinates[1] !== undefined) {
-    //             const point = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[1], d.geometry.coordinates[0]));
-    //             return `translate(${point.x},${point.y})`;
-    //         } else {
-    //             console.error("Invalid LatLng object:", d);
-    //             return "translate(0,0)";
-    //         }
-    //     })
-    // }
+        //
+        const grid_size = 1000
+        const grid_width = 0.008983111749910169
+        const grid_height = 0.010391927140799718
 
-    // function projectPoint(x, y) {
-    //     const point = map.value.latLngToLayerPoint(new L.LatLng(y, x))
-    //     this.stream.point(point.x, point.y)
-    // }
-}
 
-const initGridLayer = () => {
-    gridLayer.value = L.layerGroup()
-    // const svg1 = d3.select(gridLayer.value._path._container).append('svg')
-    //     .attr('width', map.getSize().x)
-    //     .attr('height', map.getSize().y);
+        // var simple_data = JSON.parse(grid_data).filter(item => item.longitude >= lonStart-grid_width && item.longitude <= lonEnd+grid_width && item.latitude >= latStart-grid_height && item.latitude <= latEnd+grid_height)
+
+        var simple_geo_data = data.features.filter(item => item.geometry.coordinates[0][0][0] >= lonStart-grid_width && item.geometry.coordinates[0][0][0] <= lonEnd+grid_width && item.geometry.coordinates[0][0][1] >= latStart-grid_height && item.geometry.coordinates[0][0][1] <= latEnd+grid_height)
+
+        // console.log("simple"+simple_geo_data.length)
+        var bounds = path.bounds({type: "FeatureCollection", features: simple_geo_data}),
+        topLeft = bounds[0],
+        bottomRight = bounds[1];
+
+        var width = bottomRight[0] - topLeft[0]
+        var height = bottomRight[1] - topLeft[1]
+
+        // 检查是否有无效值
+        if (!isFinite(width) || !isFinite(height)) {
+            console.error("Invalid bounds:", bounds)
+            return
+        }
+
+        svg.attr("width", width)
+            .attr("height", height)
+            .style("left", topLeft[0] + "px")
+            .style("top", topLeft[1] + "px");
+
+        // console.log("width"+width)
+        // console.log("height"+height)
+
+        g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
+
+        g.selectAll("*").remove()
+
+        var feature = g.selectAll("rect")
+            .data(simple_geo_data)
+            .enter()
+            .append("rect")
+            .attr("x", d=>{
+                var point = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
+                return point.x;
+            })
+            .attr("y", d=>{
+                var y = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0])).y;
+                return y;
+            })
+            .attr("width", d=>{
+                var point1 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][0][1],d.geometry.coordinates[0][0][0]));
+                var point2 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
+                return Math.abs(point1.x-point2.x);
+            })
+            .attr("height", d=>{
+                var point1 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][0][1],d.geometry.coordinates[0][0][0]));
+                var point2 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
+                return Math.abs(point1.y-point2.y)
+                
+            })
+            .attr("fill", "red")
+            .attr("fill-opacity", 0.5)
+            .attr("stroke", "black")
+            .attr("stroke-width", 1);
+            
+    }
+
+    function projectPoint(x, y) {
+        const point = map.value.latLngToLayerPoint(new L.LatLng(y, x))
+        this.stream.point(point.x, point.y)
+    }
 }
 
 const initDotmapLayer = (data) => {
     dotmapLayer.value = L.layerGroup()
-    const svg = d3.select(map.value.getPanes().overlayPane).append("svg")
+    const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","dotmapLayer")
     const g = svg.append("g").attr("class", "leaflet-zoom-hide")
 
     const transform = d3.geoTransform({point: projectPoint})
@@ -276,6 +285,7 @@ const initDotmapLayer = (data) => {
             .style("left", topLeft[0] + "px")
             .style("top", topLeft[1] + "px")
 
+ 
         g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")")
 
         feature.attr("transform", d => {
@@ -298,7 +308,7 @@ const initDotmapLayer = (data) => {
 
 const updateDotmapLayer = (data) => {
     // 删除旧的svg
-    d3.select(map.value.getPanes().overlayPane).selectAll('svg').remove()
+    d3.select(map.value.getPanes().overlayPane).selectAll('#dotmapLayer').remove()
     // 过滤数据
     var filterData = data.filter(d => bankValue.value.some(bank => d.type.includes(bank)));
     initDotmapLayer(filterData)
@@ -308,6 +318,9 @@ const updateDotmapLayer = (data) => {
 watch(city, (newCity) => {
   if (map.value && getCity(newCity)) {
     map.value.setView(getCity(newCity), 10)
+    initGridLayer(gridData)
+    controlGridLayer()
+  
     updateDotmapLayer(poiData)
   }
 })
@@ -325,23 +338,31 @@ onMounted(()=>{
     map.value = L.map('mapContainer', {attributionControl: false,
     layers:[baseMapLayer]
     }).setView(getCity(city.value), 10)
+
     d3.csv('/jpBank.csv').then((data) => {
         //console.log(data)
     poiData = data.map((d) => {
         return {lat: d.lat, lon: d.lon, name: d.name, type: d.type}
     })
-    gridData = JSON.parse(grid_data)
+
+    d3.json('/grids.geojson').then(function(data) {
+        // 处理加载的数据
+        // console.log("js"+data); // 输出 GeoJSON 数据到控制台
+        gridData = data
+        // initGridLayer(gridData)
+    }).catch(function(error) {
+        console.error("Error loading the GeoJSON file:", error);
+    });
+
+    // gridData = JSON.parse(grid_data)
     heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 50, blur: 35, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}})
-    initGridLayer()
-    console.log("############")
-    
-    console.log(gridData[0])
-    initGridLayer()
+
+    gridLayer.value = L.layerGroup()
     initDotmapLayer(poiData)
 
     // 更新 overlayMaps
     overlayMaps["热力图"] = heatmapLayer.value;
-    overlayMaps["网格图"] = gridLayer.value;
+    // overlayMaps["网格图"] = gridLayer.value;
     overlayMaps["兴趣点图"] = dotmapLayer.value;
     //console.log(overlayMaps)
     createMap()
