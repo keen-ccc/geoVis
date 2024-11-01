@@ -295,7 +295,7 @@ onMounted(()=>{
 
 <template>
     <div style="height: 100%;">
-        <!-- <div class="controlBar">
+        <div class="controlBar">
             <span>选择城市</span>
             <el-select v-model="city" placeholder="Select" style="width: 20%;">
                 <el-option v-for="(latlon,cityname) in cities" :key="cityname" :label="cityname" :value="cityname"></el-option>
@@ -304,7 +304,7 @@ onMounted(()=>{
             <el-select v-model="bankValue" multiple collapse-tags placeholder="Select" style="width: 20%;"  >
                 <el-option v-for="(color,type) in dotColors" :key="type" :label="type" :value="type"></el-option>
             </el-select>
-        </div> -->
+        </div>
         <div id="mapContainer" style="height: 100%;width:100%;">
             <l-sidepanel id="rightPanel" :headings tabsPosition="top" position="right">
                 <template #[`heading.1`]>
