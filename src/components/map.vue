@@ -11,7 +11,7 @@ import * as d3 from 'd3'
 import { cities ,getCity} from '../utils/getCity.js'
 import {dotColors,getDotColors} from '../utils/getColor.js';
 import detailTable from './detailTable.vue';
-import * as Cesium from 'cesium';
+//import * as Cesium from 'cesium';
 // import grid_data from '@/assets/grids.json'
 // import grid_data from '@/assets/grid_simple.geojson'
 // import fs from 'fs';
