@@ -1,11 +1,14 @@
 <script setup>
-import { ref,onMounted,watch} from 'vue'
+import { ref,onMounted,watch,toRaw} from 'vue'
 import * as L from 'leaflet'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.heat/dist/leaflet-heat.js'
 import 'vue-leaflet-sidepanel/dist/style.css';
 import { LMap, LTileLayer } from '@vue-leaflet/vue-leaflet';
 import { LSidepanel, LSidepanelTab } from 'vue-leaflet-sidepanel';
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
+import 'leaflet.markercluster/dist/leaflet.markercluster.js'
 import * as d3 from 'd3'
 //import getCity from '../utils/index.js'
 import { cities ,getCity} from '../utils/getCity.js'
@@ -13,6 +16,34 @@ import {dotColors,getDotColors} from '../utils/getColor.js';
 import detailTable from './detailTable.vue';
 import {useGridSelectorStore} from '@/store/gridSelector'
 
+
+
+L.Tooltip.include({
+	_animateZoom(e) {
+		//console.log('Tooltip',this._map);
+		const pos = this._map._latLngToNewLayerPoint(this._latlng, e.zoom, e.center);
+		this._setPosition(pos);
+	}
+});
+L.Popup.include({
+	_animateZoom(e) {
+		//console.log('Popup',this._map);
+		const pos = this._map._latLngToNewLayerPoint(this._latlng, e.zoom, e.center),
+			anchor = this._getAnchor();
+		L.DomUtil.setPosition(this._container, pos.add(anchor));
+	},
+});
+L.Marker.include({
+	_animateZoom(opt) {
+		//console.log('Marker',this._map);
+        if(this._map === null){
+            return
+        }
+		const pos = this._map._latLngToNewLayerPoint(this._latlng, opt.zoom, opt.center).round();
+
+		this._setPos(pos);
+	},
+});
 
 const map =ref(null)
 const city = ref('成都市')
@@ -37,7 +68,7 @@ let baseMapLayer = L.tileLayer('https://webrd04.is.autonavi.com/appmaptile?lang=
 let heatmapLayer = ref(null)
 let dotmapLayer = ref(null)
 let gridLayer = ref(null)
-
+let aggregationLayer = ref(null)
 
 // 图层切换控件
 var layerControl = null
@@ -45,9 +76,10 @@ var baseMaps = {
     "地图": baseMapLayer
 }
 var overlayMaps = {
-    "热力图": heatmapLayer.value,
+    "热力层": heatmapLayer.value,
     // "网格图": gridLayer.value,
-    "兴趣点图": dotmapLayer.value
+    "兴趣点层": dotmapLayer.value,
+    '聚合点层':aggregationLayer.value
 }
 
 var grid_bool = 0;
@@ -93,26 +125,31 @@ const createMap = () => {
 
     // 监听图层切换事件
     map.value.on('overlayadd',(e)=>{
-        if(e.name == '兴趣点图' && bankValue.value.length !== 4){
+        if(e.name == '兴趣点层' && bankValue.value.length !== 4){
             bankValue.value = ['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行']
             updateDotmapLayer(poiData)
         }
     })
     map.value.on('overlayremove',(e)=>{
-        if(e.name == '兴趣点图'){
+        console.log(e)
+        if(e.name == '兴趣点层'){
             //删除生成的svg
             d3.select(map.value.getPanes().overlayPane).selectAll('#dotmapLayer').remove()
         }
     })
     // createGrid()
+    createAggregationLayer()
     // 如果热力图层已初始化，则添加到地图
     if (heatmapLayer.value) {
         heatmapLayer.value.addTo(map.value);
     }
-    // 如果点图层已初始化，则添加到地图
-    if(dotmapLayer.value){
-        dotmapLayer.value.addTo(map.value)
-    }
+    // // 如果点图层已初始化，则添加到地图
+    // if(dotmapLayer.value){
+    //     dotmapLayer.value.addTo(map.value)
+    // }
+    // if(testLayer.value){
+    //     testLayer.value.addTo(map.value)
+    // }
 }
 
 
@@ -240,7 +277,7 @@ const initGridLayer = (data1) => {
 }
 
 const initDotmapLayer = (data) => {
-    dotmapLayer.value = L.layerGroup()
+    //dotmapLayer.value = L.layerGroup()
     const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","dotmapLayer")
     const g = svg.append("g").attr("class", "leaflet-zoom-hide")
 
@@ -323,6 +360,18 @@ const updateDotmapLayer = (data) => {
     //console.log("dotmapLayer is:",dotmapLayer.value)
 }
 
+const createAggregationLayer = () => {
+    //console.log("createTestLayer")
+    var markers = L.markerClusterGroup()
+    // 过滤掉无效的数据点
+    const validPoiData = poiData.filter(d => d && d.lat != null && d.lon != null)
+    // 添加有效的数据点到 markers
+    validPoiData.forEach(d => {
+        markers.addLayer(L.marker([d.lat, d.lon]))
+    })
+    aggregationLayer.value.addLayer(markers)
+}
+
 watch(city, (newCity) => {
   if (map.value && getCity(newCity)) {
     map.value.setView(getCity(newCity), 10)
@@ -366,12 +415,14 @@ onMounted(()=>{
     heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 50, blur: 35, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}})
 
     gridLayer.value = L.layerGroup()
-    initDotmapLayer(poiData)
-
+    dotmapLayer.value = L.layerGroup()
+    //initDotmapLayer(poiData)
+    aggregationLayer.value = L.layerGroup()
     // 更新 overlayMaps
-    overlayMaps["热力图"] = heatmapLayer.value;
-    // overlayMaps["网格图"] = gridLayer.value;
-    overlayMaps["兴趣点图"] = dotmapLayer.value;
+    overlayMaps["热力层"] = heatmapLayer.value;
+    //overlayMaps["网格层"] = gridLayer.value;
+    overlayMaps["兴趣点层"] = dotmapLayer.value;
+    overlayMaps['聚合点层'] = aggregationLayer.value
     //console.log(overlayMaps)
     createMap()
     })
@@ -390,7 +441,7 @@ onMounted(()=>{
                 <el-option v-for="(color,type) in dotColors" :key="type" :label="type" :value="type"></el-option>
             </el-select>
         </div>
-        <div id="mapContainer" style="height: 97%;width:100%;">
+        <div id="mapContainer" style="height: 100%;width:100%;">
             <l-sidepanel id="rightPanel" :headings tabsPosition="top" position="right">
                 <template #[`heading.1`]>
                     网格比较

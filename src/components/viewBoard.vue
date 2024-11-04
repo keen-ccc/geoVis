@@ -2,6 +2,7 @@
 import detailTable from "./detailTable.vue"
 import Map from './map.vue'
 import radarChart from './radarChart.vue'
+import poiDetail from './poiDetail.vue'
 </script>
 
 <template>
@@ -17,8 +18,8 @@ import radarChart from './radarChart.vue'
                 <radarChart></radarChart>
             </div>
             <div class="info-table">
-                <p>table</p>
-                <detailTable></detailTable>
+                <!-- <detailTable></detailTable> -->
+                <poiDetail></poiDetail>
             </div>
         </div>
     </div>
