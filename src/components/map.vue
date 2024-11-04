@@ -11,12 +11,7 @@ import * as d3 from 'd3'
 import { cities ,getCity} from '../utils/getCity.js'
 import {dotColors,getDotColors} from '../utils/getColor.js';
 import detailTable from './detailTable.vue';
-import * as Cesium from 'cesium';
-// import grid_data from '@/assets/grids.json'
-// import grid_data from '@/assets/grid_simple.geojson'
-// import fs from 'fs';
-// import geojsonStream from 'geojson-stream';
-// import Cesium from 'cesium';
+import {useGridSelectorStore} from '@/store/gridSelector'
 
 
 const map =ref(null)
@@ -167,9 +162,15 @@ const initGridLayer = (data1) => {
 
         // var simple_data = JSON.parse(grid_data).filter(item => item.longitude >= lonStart-grid_width && item.longitude <= lonEnd+grid_width && item.latitude >= latStart-grid_height && item.latitude <= latEnd+grid_height)
 
+        console.log("features"+data.features[0].geometry.coordinates[0][0][0])
+        console.log(lonStart)
+        console.log(lonEnd)
+        console.log(latStart)
+        console.log(latEnd)
+
         var simple_geo_data = data.features.filter(item => item.geometry.coordinates[0][0][0] >= lonStart-grid_width && item.geometry.coordinates[0][0][0] <= lonEnd+grid_width && item.geometry.coordinates[0][0][1] >= latStart-grid_height && item.geometry.coordinates[0][0][1] <= latEnd+grid_height)
 
-        // console.log("simple"+simple_geo_data.length)
+        console.log("simple"+simple_geo_data.length)
         var bounds = path.bounds({type: "FeatureCollection", features: simple_geo_data}),
         topLeft = bounds[0],
         bottomRight = bounds[1];
@@ -221,7 +222,14 @@ const initGridLayer = (data1) => {
             .attr("fill", "red")
             .attr("fill-opacity", 0.5)
             .attr("stroke", "black")
-            .attr("stroke-width", 1);
+            .attr("stroke-width", 1)
+            .on("click", function(e, d){
+                // console.log(d)
+                const gridStore = useGridSelectorStore();
+                gridStore.selectGrid(d.geometry.coordinates[0][0], d.geometry.coordinates[0][2])
+                // console.log("store")
+                // console.log(gridStore.latStart)
+            });
             
     }
 
@@ -347,7 +355,7 @@ onMounted(()=>{
 
     d3.json('/grids.geojson').then(function(data) {
         // 处理加载的数据
-        // console.log("js"+data); // 输出 GeoJSON 数据到控制台
+        // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
         gridData = data
         // initGridLayer(gridData)
     }).catch(function(error) {

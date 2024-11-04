@@ -21,7 +21,9 @@
 
 <script setup>
 import * as echarts from 'echarts';
-import { onMounted, ref} from 'vue';
+import { onMounted, ref, watch} from 'vue';
+import { storeToRefs } from 'pinia'
+import {useGridSelectorStore} from '@/store/gridSelector'
 
 const fanDiagram = ref(null);
 let chartInstance = null;
@@ -49,6 +51,19 @@ const tableData = [
 ]
 
 onMounted(()=>{
+  const gridStore = useGridSelectorStore();
+  // gridStore.selectGrid(d.geometry.coordinates[0][0], d.geometry.coordinates[0][2])
+  // console.log("store")
+  // console.log(gridStore.latStart)
+  var {bound} = storeToRefs(gridStore)
+  watch(
+      () => bound.value, // 监听的状态属性
+      (newValue, oldValue) => {
+        console.log('状态变化:', (oldValue), '->', newValue);
+        // 你的处理逻辑
+      },
+      { deep: true } // 深度监听
+  );
     var option = {
     tooltip: {
       trigger: 'item'
@@ -83,6 +98,7 @@ onMounted(()=>{
   window.addEventListener('resize', () => {
     chartInstance.resize();
   });
+
   
 })
 </script>
