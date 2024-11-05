@@ -3,6 +3,15 @@ import detailTable from "./detailTable.vue"
 import Map from './map.vue'
 import radarChart from './radarChart.vue'
 import poiDetail from './poiDetail.vue'
+import { onMounted, onUnmounted } from 'vue';
+
+onMounted(() => {
+  document.body.style.overflow = 'hidden';
+});
+
+onUnmounted(() => {
+  document.body.style.overflow = '';
+});
 </script>
 
 <template>
@@ -26,6 +35,7 @@ import poiDetail from './poiDetail.vue'
 </template>
 
 <style scoped>
+
 .grid-container{
     height: 100vh;
     width: 100%;
@@ -64,7 +74,13 @@ import poiDetail from './poiDetail.vue'
 .info-table{
     border:2px solid #b5b5b5;
     box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
-    overflow-y: scroll;
+    overflow:auto;
     max-height: 100%;
+    -ms-overflow-style: none;  /* 对于 Internet Explorer 和 Edge */
+    scrollbar-width: none;  /* 对于 Firefox */
+}
+.info-table::-webkit-scrollbar {
+    width: 0;
+    height: 0;
 }
 </style>

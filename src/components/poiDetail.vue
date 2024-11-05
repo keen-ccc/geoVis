@@ -54,26 +54,29 @@ const options = [
 </script>
 
 <template>
-    <p style="font-size: 16px;font-weight:bold;margin:0.5rem">POI 目录</p>
-    <div id="poiDetail">
-        <div id="poiFilter">
-            <p>种类：</p>
-            <el-select v-model="selection" style="width: 80%;">
-                <el-option v-for="option in options" :key="option.label" :value="option.value" :label="option.label"></el-option>
-            </el-select>
-        </div>
-        <div id="poiTable">
-            <ul>
-                <div id="singlePoi" v-for="poi in poiData" :key="poi.name">
-                    <svgHolder :value="selection"></svgHolder>
-                    <div id="singlePoiDetail">
-                        <span>{{poi.name}}</span>
-                        <p>{{poi.address}}</p>
+    <div style="overflow: hidden;">
+        <p style="font-size: 16px;font-weight:bold;margin:0.5rem">POI 目录</p>
+        <div id="poiDetail">
+            <div id="poiFilter">
+                <p>种类：</p>
+                <el-select v-model="selection" style="width: 80%;">
+                    <el-option v-for="option in options" :key="option.label" :value="option.value" :label="option.label"></el-option>
+                </el-select>
+            </div>
+            <div id="poiTable">
+                <ul>
+                    <div id="singlePoi" v-for="poi in poiData" :key="poi.name">
+                        <svgHolder :value="selection"></svgHolder>
+                        <div id="singlePoiDetail">
+                            <span>{{poi.name}}</span>
+                            <p>{{poi.address}}</p>
+                        </div>
                     </div>
-                </div>
-            </ul>
+                </ul>
+            </div>
         </div>
     </div>
+
 </template>
 
 <style scoped>
@@ -90,9 +93,10 @@ const options = [
     justify-content: space-around;
 
 }
-#poiTable{
-    height:90%;
-    width:100%;
+#poiTable {
+    height: 90%;
+    width: 100%;
+    overflow: hidden;
 }
 #singlePoi{
     height:5rem;
