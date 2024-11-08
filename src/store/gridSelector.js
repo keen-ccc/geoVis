@@ -19,6 +19,11 @@ export const useGridSelectorStore = defineStore('gridSelector', {
         // this.bound.lonEnd = Math.max(point1[0], point2[0])
         // this.bound.latStart = Math.min(point1[1], point2[1])
         // this.bound.latEnd = Math.max(point1[1], point2[1])
+    },
+    cancelGrid() {
+      this.bound = {
+        latStart: 0, latEnd:0, lonStart:0, lonEnd:0
+    }
     }
   },
   persist : true

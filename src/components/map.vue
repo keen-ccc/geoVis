@@ -15,7 +15,9 @@ import { cities ,getCity} from '../utils/getCity.js'
 import {dotColors,getDotColors} from '../utils/getColor.js';
 import detailTable from './detailTable.vue';
 import {useGridSelectorStore} from '@/store/gridSelector'
-
+import { storeToRefs } from 'pinia'
+import html2canvas from "html2canvas";
+import {Delete} from '@element-plus/icons-vue'
 
 
 L.Tooltip.include({
@@ -45,6 +47,8 @@ L.Marker.include({
 	},
 });
 
+var selected = ref(false)
+var selectedGrid = null 
 const map =ref(null)
 const city = ref('成都市')
 const bankValue = ref(['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行'])
@@ -69,6 +73,8 @@ let heatmapLayer = ref(null)
 let dotmapLayer = ref(null)
 let gridLayer = ref(null)
 let aggregationLayer = ref(null)
+let panel1 = ref(null)
+var comparisonCards = ref([{title:'block', score:60, imgUrl:null}])
 
 // 图层切换控件
 var layerControl = null
@@ -102,6 +108,61 @@ const controlGridLayer = () => {
         grid_bool = 1;
     }
 }
+
+function saveGridSnapshot(bounds) {
+    // 使用 html2canvas 或其他方法获取地图区域快照
+    const mapElement = document.getElementById('mapContainer');
+    console.log('mapElement:', mapElement);
+    var imgUrl = null;
+    html2canvas(mapElement,{scale: window.devicePixelRatio}).then(canvas => {
+        imgUrl = canvas.toDataURL();
+        // console.log("url"+imgUrl)
+        
+        // 此处 img 变量是包含地图区域的快照图像
+        // console.log('Snapshot Image:', img);
+
+        // 将 canvas 添加到容器中
+        
+        // rightPanel1.value.appendChild(canvas);
+        // 创建一个新的 img 元素
+        // var imgElement = document.createElement('img');
+        // imgElement.src = imgUrl; // 设置 img 元素的 src 属性为截图的 base64 数据
+        // imgElement.style.width = '100px'
+        // imgElement.style.height = '100px'
+
+        // 获取指定的容器元素
+        // var container = document.getElementById('panel1');
+        
+        // 将 img 元素添加到指定的容器中
+        // container.appendChild(imgElement);
+        return imgUrl;
+    });
+    
+}
+
+
+const addComparison = () => {
+    const gridStore = useGridSelectorStore();
+    var {bound} = storeToRefs(gridStore);
+    // console.log("imgURL"+saveGridSnapshot(bound))
+
+    const mapElement = document.getElementById('mapContainer');
+    console.log('mapElement:', mapElement);
+    var imgUrl = null;
+
+    html2canvas(mapElement).then(canvas => {
+        imgUrl = canvas.toDataURL();
+        const newCard = {title:'block', score:60, bound: bound.value , imgUrl: imgUrl}
+        comparisonCards.value.push(newCard)
+    })
+    
+    
+}
+
+const deleteComparison = (index) => {
+    comparisonCards.value.splice(index, 1);
+}
+
 const createMap = () => {
     // 添加图层控制
     layerControl = L.control.layers(baseMaps, overlayMaps).addTo(map.value)
@@ -256,18 +317,46 @@ const initGridLayer = (data1) => {
                 return Math.abs(point1.y-point2.y)
                 
             })
-            .attr("fill", "red")
-            .attr("fill-opacity", 0.5)
-            .attr("stroke", "black")
+            .attr("fill", "blue")
+            .attr("fill-opacity", 0.3)
+            .attr("stroke", "white")
             .attr("stroke-width", 1)
             .on("click", function(e, d){
                 // console.log(d)
                 const gridStore = useGridSelectorStore();
-                gridStore.selectGrid(d.geometry.coordinates[0][0], d.geometry.coordinates[0][2])
-                // console.log("store")
-                // console.log(gridStore.latStart)
+                var point1 = d.geometry.coordinates[0][0];
+                var point2 = d.geometry.coordinates[0][2];
+                // Math.min(point1[1],point2[1])==latStart && Math.min(point1[0],point2[0])==lonStart
+                if(!selected.value){
+                    addHightlight(this)
+                    selected.value = true;
+                    gridStore.selectGrid(point1, point2)
+                    selectedGrid = this
+                } else if(selectedGrid == this) {
+                    selected.value = false;
+                    removeHightlight(this)
+                    gridStore.cancelGrid()
+                } else {
+                    gridStore.selectGrid(point1, point2);
+                    addHightlight(this)
+                    removeHightlight(selectedGrid)
+                    selectedGrid = this
+                }
+                
             });
             
+    }
+
+    function addHightlight(grid) {
+        d3.select(grid)
+            .attr("stroke", "red")
+            .attr("stroke-width", 2)
+    }
+
+    function removeHightlight(grid) {
+        d3.select(grid)
+            .attr("stroke", "white")
+            .attr("stroke-width", 1)
     }
 
     function projectPoint(x, y) {
@@ -440,14 +529,28 @@ onMounted(()=>{
             <el-select v-model="bankValue" multiple collapse-tags placeholder="Select" style="width: 20%;"  >
                 <el-option v-for="(color,type) in dotColors" :key="type" :label="type" :value="type"></el-option>
             </el-select>
+            <el-button :disabled="!selected" @click="addComparison">+比较视图</el-button>
         </div>
         <div id="mapContainer" style="height: 100%;width:100%;">
             <l-sidepanel id="rightPanel" :headings tabsPosition="top" position="right">
                 <template #[`heading.1`]>
                     网格比较
                 </template>
-                <l-sidepanel-tab link="1">
+                <l-sidepanel-tab id="panel1" link="1">
+                    <!-- <img :src="picPath"> -->
                     <p>Content 1</p>
+                    <div v-for="(card, index) in comparisonCards" :key="index" class="card">
+                        <div>
+                            <h3>{{ card.title }}</h3>
+                            <!-- <img :src="card.imgUrl"  alt="Card Image" style="width: 50%; height: 70%;"/> -->
+                            <!-- <p>{{ card.imgUrl }}</p> -->
+                            <p>商业化水平</p>
+                            <el-progress :percentage="card.score" :show-text="false"/>
+                        </div>
+                        <div class="button">
+                            <el-button size="small" :icon="Delete" circle @click="deleteComparison(index)"/>
+                        </div>
+                    </div>
                 </l-sidepanel-tab>
                 <template #[`heading.2`]>
                     市场经营主体分析
@@ -469,5 +572,17 @@ onMounted(()=>{
     padding: 5px;
     margin: 2px;
     align-items: center;
+}
+#panel1{
+    width: 400px;
+}
+.card{
+    width: 100%;
+    display: grid;
+    grid-template-columns: 4fr 1fr;
+}
+.button{
+    margin:2px;
+    align-content: center;
 }
 </style>
