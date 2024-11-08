@@ -12,8 +12,9 @@ import 'leaflet.markercluster/dist/leaflet.markercluster.js'
 import * as d3 from 'd3'
 //import getCity from '../utils/index.js'
 import { cities ,getCity} from '../utils/getCity.js'
-import {dotColors,getDotColors} from '../utils/getColor.js';
+import {dotColors,expressDotColors,getDotColors,getExpressDotColors} from '../utils/getColor.js';
 import detailTable from './detailTable.vue';
+import { color } from 'echarts';
 import {useGridSelectorStore} from '@/store/gridSelector'
 import { storeToRefs } from 'pinia'
 import html2canvas from "html2canvas";
@@ -52,6 +53,9 @@ var selectedGrid = null
 const map =ref(null)
 const city = ref('成都市')
 const bankValue = ref(['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行'])
+const expressValue = ref(['菜鸟','顺丰','京东','申通','圆通','中通','韵达','邮政'])
+const dataSource = ref('bank')
+let dataSourceFlag = true // true:银行  false:物流
 let poiData = []
 let gridData = []
 const headings = [
@@ -66,7 +70,7 @@ const headings = [
 ]
 // 图层
 let baseMapLayer = L.tileLayer('https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',{
-    maxZoom: 19,
+    maxZoom: 16,
     minZoom: 6,
 })
 let heatmapLayer = ref(null)
@@ -186,24 +190,44 @@ const createMap = () => {
 
     // 监听图层切换事件
     map.value.on('overlayadd',(e)=>{
+        console.log(e)
         if(e.name == '兴趣点层' && bankValue.value.length !== 4){
             bankValue.value = ['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行']
             updateDotmapLayer(poiData)
         }
+        if(e.name == '兴趣点层' && expressValue.value.length !== 7){
+            expressValue.value =['菜鸟','顺丰','京东','申通','圆通','中通','韵达','邮政']
+            updateDotmapLayer(poiData)
+        }
+        // if(e.name == '热力层' ){
+        //     console.log(poiData)
+        //     // heatmapLayer.value.remove()
+        //     heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 50, blur: 35, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
+        // }
+        if(e.name == '聚合点层'){
+            createAggregationLayer()
+        }
     })
     map.value.on('overlayremove',(e)=>{
-        console.log(e)
         if(e.name == '兴趣点层'){
+            console.log('remove 兴趣点')
             //删除生成的svg
             d3.select(map.value.getPanes().overlayPane).selectAll('#dotmapLayer').remove()
         }
+        if(e.name == '热力层'){
+            console.log('remove')
+            heatmapLayer.value.remove()
+        }
+        if(e.name == '聚合点层'){
+            aggregationLayer.value.clearLayers()
+        }
     })
     // createGrid()
-    createAggregationLayer()
+    // createAggregationLayer()
     // 如果热力图层已初始化，则添加到地图
-    if (heatmapLayer.value) {
-        heatmapLayer.value.addTo(map.value);
-    }
+    // if (heatmapLayer.value) {
+    //     heatmapLayer.value.addTo(map.value);
+    // }
     // // 如果点图层已初始化，则添加到地图
     // if(dotmapLayer.value){
     //     dotmapLayer.value.addTo(map.value)
@@ -374,14 +398,14 @@ const initDotmapLayer = (data) => {
     const path = d3.geoPath().projection(transform)
 
     const geoData = data.map(d => ({type: "Feature", geometry: {type: "Point", coordinates: [d.lon, d.lat]}, properties: d}))
-    //console.log(geoData)
+    // console.log(geoData)
     const feature = g.selectAll("circle")
         .data(geoData)
         .enter().append("circle")
-        .attr("r", 5)
+        .attr("r", 2.5)
         .attr("fill", (d => {
-            if(d.properties && d.properties.type){
-                if (d.properties.type.includes('中国工商银行')) {
+            if(d.properties && d.properties.type && dataSourceFlag == true){
+                if (d.properties.type.includes('中国工商银行') ) {
                     return getDotColors('中国工商银行')
                 } else if (d.properties.type.includes('中国建设银行')) {
                     return getDotColors('中国建设银行')
@@ -393,12 +417,37 @@ const initDotmapLayer = (data) => {
                     return getDotColors('中国银行')
                 }
             }
-            console.error("Invalid type:", d)
-
+            else if(d.properties && d.properties.type && dataSourceFlag == false){
+                if(d.properties.name.includes('菜鸟')){
+                    return getExpressDotColors('菜鸟')
+                }
+                else if(d.properties.name.includes('顺丰')){
+                    return getExpressDotColors('顺丰')
+                }
+                else if(d.properties.name.includes('京东')){
+                    return getExpressDotColors('京东')
+                }
+                else if(d.properties.name.includes('申通')){
+                    return getExpressDotColors('申通')
+                }
+                else if(d.properties.name.includes('圆通')){
+                    return getExpressDotColors('圆通')
+                }
+                else if(d.properties.name.includes('中通')){
+                    return getExpressDotColors('中通')
+                }
+                else if(d.properties.name.includes('韵达')){
+                    return getExpressDotColors('韵达')
+                }
+                else if(d.properties.name.includes('邮政')){
+                    return getExpressDotColors('邮政')
+                }
+                else{
+                    // 不显示
+                    return 'none'
+                }
+            }
         }))
-        .attr("stroke", d => getDotColors(d.type))
-        .attr("fill-opacity", 0.8)
-        .attr("stroke-width", 1)
 
     map.value.on("zoomend", reset)
     reset()
@@ -444,7 +493,14 @@ const updateDotmapLayer = (data) => {
     // 删除旧的svg
     d3.select(map.value.getPanes().overlayPane).selectAll('#dotmapLayer').remove()
     // 过滤数据
-    var filterData = data.filter(d => bankValue.value.some(bank => d.type.includes(bank)));
+    if(dataSourceFlag == false){
+        // express
+        var filterData = data.filter(d => expressValue.value.some(express => d.name.includes(express)));
+    }
+    else{
+        // bank
+        var filterData = data.filter(d => bankValue.value.some(bank => d.type.includes(bank)));
+    }
     initDotmapLayer(filterData)
     //console.log("dotmapLayer is:",dotmapLayer.value)
 }
@@ -464,11 +520,14 @@ const createAggregationLayer = () => {
 watch(city, (newCity) => {
   if (map.value && getCity(newCity)) {
     map.value.setView(getCity(newCity), 10)
+    if(map.value.hasLayer(dotmapLayer.value)){
+
+        updateDotmapLayer(poiData)
+    }
     initGridLayer(gridData)
     controlGridLayer()
-  
-    updateDotmapLayer(poiData)
   }
+
 })
 watch(bankValue, (newBankValue) => {
   if (map.value && poiData && bankValue.value.length > 0) {
@@ -479,11 +538,75 @@ watch(bankValue, (newBankValue) => {
   }
 
 })
+watch(expressValue, (newExpressValue) => {
+  if (map.value && poiData && expressValue.value.length > 0) {
+    updateDotmapLayer(poiData)
+  }
+  else{
+    d3.select(map.value.getPanes().overlayPane).selectAll('svg').remove()
+  }
+})
+watch(dataSource,(newdataSource)=>{
+    //express\bank
+    console.log(newdataSource) 
+
+    if(newdataSource === 'express'){
+        dataSourceFlag = false
+        // 更改poiData为物流数据
+        d3.csv('/express.csv').then((data) => {
+            poiData = data.map((d) => {
+                return {lat: d.lat, lon: d.lon, name: d.name, type: d.type}
+            })
+            // console.log(poiData)
+            // 判断是否选中了热力图层???
+            if(heatmapLayer.value && map.value.hasLayer(heatmapLayer.value)){
+                //heatmapLayer.value.remove()
+                console.log(heatmapLayer.value)
+                heatmapLayer.value.setLatLngs(poiData.map(d => [d.lat, d.lon]))
+                //heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 30, blur: 25, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
+            }
+           //图层控件中选择了兴趣点层才更新
+            if(dotmapLayer.value && map.value.hasLayer(dotmapLayer.value)){
+                dotmapLayer.value.clearLayers()
+                updateDotmapLayer(poiData)
+            }
+            if(aggregationLayer.value && map.value.hasLayer(aggregationLayer.value)){
+                aggregationLayer.value.clearLayers()
+                createAggregationLayer()
+            }
+        })
+    }
+    else{
+        dataSourceFlag = true
+        // 更改poiData为银行数据
+        d3.csv('/jpBank.csv').then((data) => {
+            poiData = data.map((d) => {
+                return {lat: d.lat, lon: d.lon, name: d.name, type: d.type}
+            })
+            if(heatmapLayer.value && map.value.hasLayer(heatmapLayer.value)){
+                //heatmapLayer.value.remove()
+                console.log(heatmapLayer.value)
+                heatmapLayer.value.setLatLngs(poiData.map(d => [d.lat, d.lon]))
+                //heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 30, blur: 25, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
+            }
+            // console.log(poiData)
+            if(dotmapLayer.value && map.value.hasLayer(dotmapLayer.value)){
+                dotmapLayer.value.clearLayers()
+                updateDotmapLayer(poiData)
+            }
+            if(aggregationLayer.value && map.value.hasLayer(aggregationLayer.value)){
+                aggregationLayer.value.clearLayers()
+                createAggregationLayer()
+            }
+        })
+    }
+})
 
 onMounted(()=>{
     map.value = L.map('mapContainer', {attributionControl: false,
     layers:[baseMapLayer]
-    }).setView(getCity(city.value), 10)
+}
+    ).setView(getCity(city.value), 11)
 
     d3.csv('/jpBank.csv').then((data) => {
         //console.log(data)
@@ -501,7 +624,7 @@ onMounted(()=>{
     });
 
     // gridData = JSON.parse(grid_data)
-    heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 50, blur: 35, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}})
+    heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 25, blur: 15, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}})
 
     gridLayer.value = L.layerGroup()
     dotmapLayer.value = L.layerGroup()
@@ -521,14 +644,32 @@ onMounted(()=>{
 <template>
     <div style="height: 100%;">
         <div class="controlBar">
-            <span>选择城市</span>
-            <el-select v-model="city" placeholder="Select" style="width: 20%;">
-                <el-option v-for="(latlon,cityname) in cities" :key="cityname" :label="cityname" :value="cityname"></el-option>
-            </el-select>
-            <span>选择兴趣点</span>
-            <el-select v-model="bankValue" multiple collapse-tags placeholder="Select" style="width: 20%;"  >
-                <el-option v-for="(color,type) in dotColors" :key="type" :label="type" :value="type"></el-option>
-            </el-select>
+            <div class="controlbar-content">
+                <span style="font-weight: bold;margin-right:10px">城市选择</span>
+                <el-select v-model="city" placeholder="Select" style="width: 70%;">
+                    <el-option v-for="(latlon,cityname) in cities" :key="cityname" :label="cityname" :value="cityname"></el-option>
+                </el-select>
+            </div>
+            <div class="controlbar-content">
+                <span style="font-weight: bold;margin-right:10px">数据源选择</span>
+                <el-radio-group v-model="dataSource" fill="#98b9d5">
+                    <el-radio-button label="银行" value="bank"></el-radio-button>
+                    <el-radio-button label="物流" value="express"></el-radio-button>
+                </el-radio-group>
+            </div>
+            <div class="controlbar-content" v-show="dataSourceFlag">
+                <span style="font-weight: bold;margin-right:10px">银行筛选</span>
+                <el-select v-model="bankValue" multiple collapse-tags  style="width: 70%;"  placeholder="请选择">
+                    <el-option v-for="(color,type) in dotColors" :key="type" :label="type" :value="type"></el-option>
+                </el-select>
+            </div>
+            <div class="controlbar-content" v-show="!dataSourceFlag">
+                <span style="font-weight: bold;margin-right:10px">物流筛选</span>
+                <el-select v-model="expressValue" multiple collapse-tags style="width: 70%;" placeholder="请选择" >
+                    <el-option v-for="(color,type) in expressDotColors" :key="type" :label="type" :value="type"></el-option>
+                </el-select>
+            </div>
+
             <el-button :disabled="!selected" @click="addComparison">+比较视图</el-button>
         </div>
         <div id="mapContainer" style="height: 100%;width:100%;">
@@ -572,6 +713,15 @@ onMounted(()=>{
     padding: 5px;
     margin: 2px;
     align-items: center;
+}
+.controlbar-content{
+    width:35% ;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.leaflet-container{
+    opacity: 0.8
 }
 #panel1{
     width: 400px;
