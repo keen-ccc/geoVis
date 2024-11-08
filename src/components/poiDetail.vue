@@ -58,7 +58,7 @@ const options = [
         <p style="font-size: 16px;font-weight:bold;margin:0.5rem">POI 目录</p>
         <div id="poiDetail">
             <div id="poiFilter">
-                <p>种类：</p>
+                <p style="font-weight: bold;margin-right:1rem">按行业查询：</p>
                 <el-select v-model="selection" style="width: 80%;">
                     <el-option v-for="option in options" :key="option.label" :value="option.value" :label="option.label"></el-option>
                 </el-select>
@@ -89,8 +89,7 @@ const options = [
     width:100%;
     display: flex;
     align-items: center;
-    flex-direction:row;
-    justify-content: space-around;
+    margin-left: 1rem;
 
 }
 #poiTable {

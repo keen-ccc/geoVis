@@ -55,8 +55,7 @@ onUnmounted(() => {
 .map-container{
     grid-column:1;
     grid-row:span 2;
-    border:2px solid #b5b5b5;
-    box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+    border:1px solid #b5b5b5;
     width: 100%;
     height: 100%;
 }
@@ -65,15 +64,13 @@ onUnmounted(() => {
     grid-row:span 2;
     display:grid;
     grid-template-rows: 1fr 1fr;
-    margin: 2px;
+
 }
 .info-radar{
-    border:2px solid #b5b5b5;
-    box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+    border:1px solid #b5b5b5;
 }
 .info-table{
-    border:2px solid #b5b5b5;
-    box-shadow: 5px 5px 5px rgba(0, 0, 0, 0.5);
+    border:1px solid #b5b5b5;
     overflow:auto;
     max-height: 100%;
     -ms-overflow-style: none;  /* 对于 Internet Explorer 和 Edge */

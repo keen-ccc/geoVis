@@ -43,7 +43,7 @@ const colorScale = d3.scaleSequential().domain([0,Math.log(maxValue)]).interpola
 // 数量比例尺
 // 统计第二层所有children的value之和
 const sumValue = []
-exampleData.children.forEach(d=>{
+exampleData.children.forEach(d=>{ 
   sumValue.push(d3.sum(d.children,c=>c.value))
 })
 // console.log(sumValue);
