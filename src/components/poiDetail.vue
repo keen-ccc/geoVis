@@ -1,32 +1,37 @@
 <script setup>
 import { ref,onMounted,watch} from 'vue'
 import svgHolder from './svgHolder.vue'
+import {useGridSelectorStore} from '@/store/gridSelector'
+import { storeToRefs } from 'pinia'
 
 const poiData = ref([])
 const poiFilter = ref(null)
 const selection = ref('银行')
-poiData.value = [
-    {
-        name: 'POI1',
-        address: 'address1',
-    },
-    {
-        name: 'POI2',
-        address: 'address2',
-    },
-    {
-        name: 'POI3',
-        address: 'address3',
-    },
-    {
-        name: 'POI4',
-        address: 'address4',
-    },
-    {
-        name: 'POI5',
-        address: 'address5',
+const gridStore = useGridSelectorStore()
+const { bound } = storeToRefs(gridStore);
+
+poiData.value = []
+const fetchData = async(bound) => {
+    //console.log("fetch poi data",bound)
+    const params = {
+        start_lon:bound.lonStart,
+        start_lat:bound.latStart,
+        end_lon:bound.lonEnd,
+        end_lat:bound.latEnd,
+        type:selection.value
     }
-]
+    console.log(params)
+    const res = await fetch('http://localhost:5000/api/getPOIDetail',{
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json'
+        },
+        body:JSON.stringify(params)
+    })
+    const result = await res.json()
+    poiData.value = result
+    //console.log("poi data:",poiData.value)
+}
 
 const options = [
     {
@@ -51,7 +56,13 @@ const options = [
     }
 ]
 
-
+const checkoutSelection = (value) => {
+    console.log(value)
+    fetchData(bound.value)
+}
+watch(bound,(newBound)=>{
+    fetchData(newBound)
+})
 </script>
 
 <template>
@@ -60,8 +71,8 @@ const options = [
         <div id="poiDetail">
             <div id="poiFilter">
                 <p style="font-weight: bold;margin-right:1rem">按行业查询：</p>
-                <el-select v-model="selection" style="width: 80%;">
-                    <el-option v-for="option in options" :key="option.label" :value="option.value" :label="option.label"></el-option>
+                <el-select v-model="selection" style="width: 80%;" @change="checkoutSelection">
+                    <el-option v-for="option in options" :key="option.label" :value="option.value" :label="option.label" ></el-option>
                 </el-select>
             </div>
             <div id="poiTable">
@@ -71,6 +82,7 @@ const options = [
                         <div id="singlePoiDetail">
                             <span>{{poi.name}}</span>
                             <p>{{poi.address}}</p>
+                            <el-divider style="margin-top: -0.5rem;"></el-divider>
                         </div>
                     </div>
                 </ul>
@@ -116,8 +128,7 @@ const options = [
     height:100%;
     width:90%;
     display: flex;
-    align-items: flex-start;
     flex-direction: column;
-    justify-content: flex-start;
+
 }
 </style>
