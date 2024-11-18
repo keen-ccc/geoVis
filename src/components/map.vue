@@ -429,14 +429,14 @@ const initGridLayer = (data1) => {
             .on("click", function(e, d){
                 console.log(d)
                 const gridStore = useGridSelectorStore();
-                // var point1 = d.geometry.coordinates[0][0];
-                // var point2 = d.geometry.coordinates[0][2];
+                var point1 = d.geometry.coordinates[0][0];
+                var point2 = d.geometry.coordinates[0][2];
                 // Math.min(point1[1],point2[1])==latStart && Math.min(point1[0],point2[0])==lonStart
                 if(!selected.value){
                     addHightlight(this)
                     selected.value = true;
-                    gridStore.selectGrid(d.properties.id)
-                    console.log("properties",gridStore.gridID)
+                    gridStore.selectGrid(d.properties.id, point1, point2)
+                    console.log("properties",gridStore.bound)
                     selectedGrid = this
                     //console.log(gridStore.bound)
                 } else if(selectedGrid == this) {
@@ -444,7 +444,7 @@ const initGridLayer = (data1) => {
                     removeHightlight(this)
                     gridStore.cancelGrid()
                 } else {
-                    gridStore.selectGrid(d.properties.id);
+                    gridStore.selectGrid(d.properties.id, point1, point2);
                     addHightlight(this)
                     removeHightlight(selectedGrid)
                     selectedGrid = this
