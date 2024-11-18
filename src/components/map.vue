@@ -92,6 +92,7 @@ var overlayMaps = {
     '聚合点层':aggregationLayer.value
 }
 
+var heat_bool = 0;
 var grid_bool = 0;
 
 // const getGridData = async () => {
@@ -111,12 +112,29 @@ const controlGridLayer = () => {
         map.value.addLayer(gridLayer.value)
         grid_bool = 1;
     }
+    if(zoomLevel >=15 && map.value.hasLayer(heatmapLayer.value) && heat_bool == 0){
+        heatmapLayer.value.remove()
+        layerControl.removeLayer(heatmapLayer.value)
+        heat_bool = 1;
+    }
+    else if(zoomLevel < 15 && heat_bool == 1 ){
+        layerControl.addOverlay(heatmapLayer.value, "热力层");
+        map.value.addLayer(heatmapLayer.value)
+        heat_bool = 0;
+    }
+    if(zoomLevel < 14 && map.value.hasLayer(dotmapLayer.value)){
+        d3.selectAll('#dot').attr('r',2)
+    }
+    else if(map.value.hasLayer(dotmapLayer.value)){
+        d3.selectAll('#dot').attr('r',5)
+    }
 }
 
 function saveGridSnapshot(bounds) {
     // 使用 html2canvas 或其他方法获取地图区域快照
     const mapElement = document.getElementById('mapContainer');
     console.log('mapElement:', mapElement);
+
     var imgUrl = null;
     html2canvas(mapElement,{scale: window.devicePixelRatio}).then(canvas => {
         imgUrl = canvas.toDataURL();
@@ -148,18 +166,40 @@ function saveGridSnapshot(bounds) {
 const addComparison = () => {
     const gridStore = useGridSelectorStore();
     var {bound} = storeToRefs(gridStore);
-    // console.log("imgURL"+saveGridSnapshot(bound))
+    // console.log("imgURL:"+saveGridSnapshot(bound))
 
     const mapElement = document.getElementById('mapContainer');
     console.log('mapElement:', mapElement);
     var imgUrl = null;
 
-    html2canvas(mapElement).then(canvas => {
+    const {left, top, width, height} = convertLatLngToPixel(bound.value)
+
+    console.log(left, top, width, height)
+    html2canvas(mapElement,{
+        scale: window.devicePixelRatio,
+        x: left,
+        y: top,
+        width: width,
+        height: height
+    }).then(canvas => {
         imgUrl = canvas.toDataURL();
         const newCard = {title:'block', score:60, bound: bound.value , imgUrl: imgUrl}
         comparisonCards.value.push(newCard)
     })
     
+    function convertLatLngToPixel(bound){
+        // console.log(bound.latStart, bound.latEnd)
+        const point1 = map.value.latLngToLayerPoint(new L.LatLng(bound.latStart,bound.lonStart));
+        const point2 = map.value.latLngToLayerPoint(new L.LatLng(bound.latEnd,bound.lonEnd));
+        
+        console.log(point1, point2)
+        const left = point1.x
+        const top = point2.y
+        const width = point2.x - point1.x
+        const height = point1.y - point2.y
+
+        return {left, top, width, height}
+    }
     
 }
 
@@ -341,12 +381,12 @@ const initGridLayer = (data1) => {
                 return Math.abs(point1.y-point2.y)
                 
             })
-            .attr("fill", "blue")
-            .attr("fill-opacity", 0.3)
-            .attr("stroke", "white")
+            // .attr("fill", "blue")
+            .attr("fill-opacity", 0.05)
+            .attr("stroke", "#737373")
             .attr("stroke-width", 1)
             .on("click", function(e, d){
-                // console.log(d)
+                console.log(d)
                 const gridStore = useGridSelectorStore();
                 var point1 = d.geometry.coordinates[0][0];
                 var point2 = d.geometry.coordinates[0][2];
@@ -356,6 +396,7 @@ const initGridLayer = (data1) => {
                     selected.value = true;
                     gridStore.selectGrid(point1, point2)
                     selectedGrid = this
+                    //console.log(gridStore.bound)
                 } else if(selectedGrid == this) {
                     selected.value = false;
                     removeHightlight(this)
@@ -402,7 +443,15 @@ const initDotmapLayer = (data) => {
     const feature = g.selectAll("circle")
         .data(geoData)
         .enter().append("circle")
-        .attr("r", 2.5)
+        .attr('id','dot')
+        .attr("r",(d =>{
+            if(map.value.getZoom() < 14){
+                return 2
+            }
+            else{
+                return 5
+            }
+        }))
         .attr("fill", (d => {
             if(d.properties && d.properties.type && dataSourceFlag == true){
                 if (d.properties.type.includes('中国工商银行') ) {
@@ -448,6 +497,28 @@ const initDotmapLayer = (data) => {
                 }
             }
         }))
+        .on('mouseover',function(e,d){
+            d3.select(this).attr('stroke','black').attr('stroke-width',2)
+            console.log(d.properties.name)
+            d3.select('#tooltip-name').text(d.properties.name)
+            d3.select('#tooltip-address').text(d.properties.address)
+            d3.select('#circle-tooltip').style('display', 'block');
+        })
+        .on('mousemove',function(e,d){
+            // 获取circle位置
+            const bbox = this.getBoundingClientRect()
+            const mouseX = bbox.x - bbox.width
+            const mouseY = bbox.y - bbox.height - 30
+            // const mouseX = e.clientX
+            // const mouseY = e.clientY - 40
+            console.log(mouseX, mouseY)
+              //console.log(mouseX, mouseY);
+            d3.select('#circle-tooltip').style('left',`${mouseX}px`).style('top', `${mouseY}px`);
+        })
+        .on('mouseout',function(e,d){
+            d3.select(this).attr('stroke','none')
+            d3.select('#circle-tooltip').style('display','none');
+        })
 
     map.value.on("zoomend", reset)
     reset()
@@ -507,7 +578,7 @@ const updateDotmapLayer = (data) => {
 
 const createAggregationLayer = () => {
     //console.log("createTestLayer")
-    var markers = L.markerClusterGroup()
+    var markers = L.markerClusterGroup({chunkedLoading:true})
     // 过滤掉无效的数据点
     const validPoiData = poiData.filter(d => d && d.lat != null && d.lon != null)
     // 添加有效的数据点到 markers
@@ -534,7 +605,7 @@ watch(bankValue, (newBankValue) => {
     updateDotmapLayer(poiData)
   }
   else{
-    d3.select(map.value.getPanes().overlayPane).selectAll('svg').remove()
+    d3.select(map.value.getPanes().overlayPane).select('#dotmapLayer').selectAll('*').remove()
   }
 
 })
@@ -543,7 +614,7 @@ watch(expressValue, (newExpressValue) => {
     updateDotmapLayer(poiData)
   }
   else{
-    d3.select(map.value.getPanes().overlayPane).selectAll('svg').remove()
+    d3.select(map.value.getPanes().overlayPane).select('#dotmapLayer').selectAll('*').remove()
   }
 })
 watch(dataSource,(newdataSource)=>{
@@ -555,7 +626,7 @@ watch(dataSource,(newdataSource)=>{
         // 更改poiData为物流数据
         d3.csv('/express.csv').then((data) => {
             poiData = data.map((d) => {
-                return {lat: d.lat, lon: d.lon, name: d.name, type: d.type}
+                return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
             })
             // console.log(poiData)
             // 判断是否选中了热力图层???
@@ -581,7 +652,7 @@ watch(dataSource,(newdataSource)=>{
         // 更改poiData为银行数据
         d3.csv('/jpBank.csv').then((data) => {
             poiData = data.map((d) => {
-                return {lat: d.lat, lon: d.lon, name: d.name, type: d.type}
+                return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
             })
             if(heatmapLayer.value && map.value.hasLayer(heatmapLayer.value)){
                 //heatmapLayer.value.remove()
@@ -611,7 +682,7 @@ onMounted(()=>{
     d3.csv('/jpBank.csv').then((data) => {
         //console.log(data)
     poiData = data.map((d) => {
-        return {lat: d.lat, lon: d.lon, name: d.name, type: d.type}
+        return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
     })
 
     d3.json('/grids.geojson').then(function(data) {
@@ -624,7 +695,7 @@ onMounted(()=>{
     });
 
     // gridData = JSON.parse(grid_data)
-    heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 25, blur: 15, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}})
+    heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 30, blur:20, maxZoom: 14,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#A1EE7E', 0.7: '#FAC57E', 0.9: '#EE9C82'}})
 
     gridLayer.value = L.layerGroup()
     dotmapLayer.value = L.layerGroup()
@@ -669,22 +740,26 @@ onMounted(()=>{
                     <el-option v-for="(color,type) in expressDotColors" :key="type" :label="type" :value="type"></el-option>
                 </el-select>
             </div>
-
-            <el-button :disabled="!selected" @click="addComparison">+比较视图</el-button>
+            <div class="controlbar-content">
+                <el-button :disabled="!selected" @click="addComparison">+比较视图</el-button>
+            </div>
         </div>
         <div id="mapContainer" style="height: 100%;width:100%;">
+            <div id="circle-tooltip">
+                名称：<span id="tooltip-name"></span><br>
+                地址：<span id="tooltip-address"></span>
+            </div>
             <l-sidepanel id="rightPanel" :headings tabsPosition="top" position="right">
                 <template #[`heading.1`]>
                     网格比较
                 </template>
                 <l-sidepanel-tab id="panel1" link="1">
                     <!-- <img :src="picPath"> -->
-                    <p>Content 1</p>
                     <div v-for="(card, index) in comparisonCards" :key="index" class="card">
                         <div>
                             <h3>{{ card.title }}</h3>
-                            <!-- <img :src="card.imgUrl"  alt="Card Image" style="width: 50%; height: 70%;"/> -->
-                            <!-- <p>{{ card.imgUrl }}</p> -->
+                            <!-- <img :src="card.imgUrl"  alt="Card Image"/>
+                            <p>{{ card.imgUrl }}</p> -->
                             <p>商业化水平</p>
                             <el-progress :percentage="card.score" :show-text="false"/>
                         </div>
@@ -721,7 +796,7 @@ onMounted(()=>{
     justify-content: center;
 }
 .leaflet-container{
-    opacity: 0.8
+    opacity: 0.75
 }
 #panel1{
     width: 400px;
@@ -735,4 +810,13 @@ onMounted(()=>{
     margin:2px;
     align-content: center;
 }
+#circle-tooltip{
+    display: none;
+    position: absolute;
+    background-color: #f9f9f9;
+    border: 1px solid #000;
+    border-radius: 5px;
+    padding: 5px;
+    z-index: 1100;
+  }
 </style>

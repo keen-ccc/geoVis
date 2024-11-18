@@ -2,32 +2,66 @@
 import { ref,onMounted,watch} from 'vue'
 import * as d3 from 'd3'
 import * as echarts from 'echarts';
+import {useGridSelectorStore} from '@/store/gridSelector'
+import { storeToRefs } from 'pinia'
+import { reactive } from 'vue';
 
 const radar = ref(null)
 const radarAxis = ['人口密度', '平均房价', 'POI密度', 'POI多样性']
-const data = ref([
-    {
-        name:'grid1',
-        value:[0,0.2,0.5,1],
-        score:0.5
-    },
-    {
-        name:'grid2',
-        value:[0.11,0.74,0.50,0.47],
-        score:0
-    },
-    {
-        name:'grid3',
-        value:[0.55,0.35,0.74,0.92],
-        score:1
-    }
-])
-const populationWeight = ref(null)
-const housePriceWeight = ref(null)
-const poiDensityWeight = ref(null)
-const poiDiversityWeight = ref(null)
+const data = ref([])
+const lastItem = ref(data.value[data.value.length-1])
+var gridSelected = false
+var lastItemValue = reactive([])
+const populationWeight = ref(0.13)
+const housePriceWeight = ref(0.43)
+const poiDensityWeight = ref(0.36)
+const poiDiversityWeight = ref(0.31)
 var pathSelected = false
+const gridStore = useGridSelectorStore()
+const { bound } = storeToRefs(gridStore);
 
+var populationScale,housePriceScale,poiDensityScale,poiDiversityScale,scoreScale = null;
+var populationMax,housePriceMax,poiDensityMax,poiDiversityMax,scoreMax = null;
+var populationMin,housePriceMin,poiDensityMin,poiDiversityMin,scoreMin = null;
+const fetchData = async (bound) => {
+    const params = {
+            start_lon:bound.lonStart,
+            start_lat:bound.latStart,
+            end_lon:bound.lonEnd,
+            end_lat:bound.latEnd,
+            populationWeight:populationWeight.value,
+            housePriceWeight:housePriceWeight.value,
+            poiDensityWeight:poiDensityWeight.value,
+            poiDiversityWeight:poiDiversityWeight.value
+    }
+    //console.log(params)
+    const res = await fetch('http://localhost:5000/api/cal_score',{
+        method:'POST',
+        headers:{
+            'Content-Type':'application/json'
+        },
+        body:JSON.stringify(params)
+    })
+        const result = await res.json()
+        data.value.push(result)
+        console.log("radar data:",data.value)
+
+            // 计算每个指标的最大值和最小值
+        populationMax = d3.max(data.value, d => d.value[0]);
+        housePriceMax = d3.max(data.value, d => d.value[1]);
+        poiDensityMax = d3.max(data.value, d => d.value[2]);
+        poiDiversityMax = d3.max(data.value, d => d.value[3]);
+
+        populationMin = d3.min(data.value, d => d.value[0]);
+        housePriceMin = d3.min(data.value, d => d.value[1]);
+        poiDensityMin = d3.min(data.value, d => d.value[2]);
+        poiDiversityMin = d3.min(data.value, d => d.value[3]);
+
+        scoreMax = d3.max(data.value, d => d.score);
+        scoreMin = d3.min(data.value, d => d.score);
+
+        //createRadar()
+}
 const createRadar = () => {
     d3.select(radar.value).selectAll('*').remove()
 
@@ -40,34 +74,59 @@ const createRadar = () => {
         .append('g')
         .attr('transform', `translate(${svgWidth / 2},${svgHeight})`);
     
-    // d3绘制半圆形雷达图
-    // const data = [
-    //     {
-    //         name:'grid1',
-    //         value:[0.5,0.6,0.7,0.8]
-    //     }
-    // ];
-    const radius = Math.min(svgWidth, svgHeight);
+    const radius = Math.min(svgWidth, svgHeight) - 10;
     const angleSlice = Math.PI * 2/9;
+    
+    console.log('radius:',radius)
+    //console.log(populationMax,housePriceMax,poiDensityMax,poiDiversityMax,scoreMax)
+    console.log(populationMin,housePriceMin,poiDensityMin,poiDiversityMin,scoreMin)
+    // 动态设置比例尺的 domain
+    populationScale = d3.scaleLinear()
+        .range([radius*0.25, radius])
+        .domain([0, populationMax]);
+    housePriceScale = d3.scaleLinear()
+        .range([radius*0.25, radius])
+        .domain([0, housePriceMax]);
+    poiDensityScale = d3.scaleLinear()
+        .range([radius*0.25, radius])
+        .domain([0, poiDensityMax]);
+    poiDiversityScale = d3.scaleLinear()
+        .range([radius*0.25, radius])
+        .domain([0, poiDiversityMax]);
+    scoreScale = d3.scaleLinear()
+        .range([-Math.PI/2,Math.PI/2])
+        .domain([0, scoreMax]);
+
 
     const rScale = d3.scaleLinear()
         .range([radius*0.25, radius])
         .domain([0, 1]);
     const radarLine = d3.lineRadial()
-        .radius(d => rScale(d))
+        .radius((d,i)=>{
+            switch(i){
+                case 0:
+                    return populationScale(d)
+                case 1:
+                    return housePriceScale(d)
+                case 2:
+                    return poiDensityScale(d)
+                case 3:
+                    return poiDiversityScale(d)
+            }
+        })
         .angle((d, i) => i * angleSlice - Math.PI/2 + Math.PI/6)
         .curve(d3.curveCardinal);
     
     //两个圆之间填充颜色 创建比例尺
-    const arcScale = d3.scaleLinear()
-        .range([-Math.PI/2,Math.PI/2])
-        .domain([0,1])
+    // const arcScale = d3.scaleLinear()
+    //     .range([-Math.PI/2,Math.PI/2])
+    //     .domain([0,1])
 
     data.value.forEach(d => {
         svg.append("path")
             .datum(d.value)
             .attr("d", radarLine)
-            .attr('id',d.name)
+            // .attr('id',d.name)
             .attr("class", "radarPath")
             .style("fill", "none")
             .style("stroke", "#BCBCBC")
@@ -85,21 +144,21 @@ const createRadar = () => {
                     .innerRadius(radius*0.2)
                     .outerRadius(radius*0.25)
                     .startAngle(-Math.PI)
-                    .endAngle(arcScale(d.score))
+                    .endAngle(scoreScale(d.score))
                 svg.append('path')
                     .attr('class','arcFill')
                     .attr('d',arc)
-                    .attr('fill','#fdae61')
+                    .attr('fill','#1d7bd1')
                 //小圆区域添加文本
                 svg.append('text')
                     .attr('class','arcText')
-                    .text(d.score)
+                    .text(d.score.toFixed(2))
                     .attr('x',0)
                     .attr('y',-radius*0.1)
                     .attr('text-anchor','middle')
                     .attr('dy','0.5em')
-                    .attr('font-size',24)
-                    .attr('fill','#f46d43')
+                    .attr('font-size',12)
+                    .attr('fill','#2B587D')
                     .attr('font-weight','bold')
                 })
     });
@@ -151,52 +210,87 @@ const createRadar = () => {
         .attr('stroke','#888888')
 
 }
+const clearChart = () => {
+    d3.select(radar.value).selectAll('path').remove()
+    // 清楚data
+    data.value.splice(0,data.value.length)
+}
+const reset = () => {
 
-// const addData = () =>{
-//     data.value.push({
-//         name:'grid'+(data.value.length+1),
-//         value:[Math.random(),Math.random(),Math.random(),Math.random()]
-//     })
-//     console.log(data.value)
-// }
+}
 onMounted(()=>{
-    createRadar()
+    // createRadar()
+})
+watch(bound,(newBound)=>{
+    console.log(newBound.latStart)
+    fetchData(newBound)
 })
 watch(data.value,()=>{
     console.log('data change')
+    gridSelected = true
+    console.log(gridSelected)
+    lastItem.value = data.value[data.value.length-1]
+    lastItemValue.splice(0,lastItemValue.length,...lastItem.value.value.map(d => d.toFixed(2)))
+    // 保留一位小数
+    // lastItemValue = lastItemValue.map(d => d.toFixed(2))
+    console.log(lastItemValue)
     createRadar()
 })
 </script>
 
 <template>
-    <p style="font-size: 16px;font-weight:bold;margin:0.5rem">网格商业化水平详情</p>
+    <p style="font-size: 16px;font-weight:bold;margin:0.2rem">网格商业化水平详情</p>
     <div id="container">
         <!-- <el-button type="primary" @click="addData">ADD</el-button> -->
-        <div ref="radar" class="radarChart">
+        <div style="display: flex;justify-content:flex-end;width:95%">
+            <button @click="clearChart" class="clearButton">清除</button>
         </div>
-        <div ref="weight" class="weight">
-            <div class="sliderContainer">
-                <span>人口密度</span>
-                <el-slider v-model="populationWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
+
+        <div ref="radar" class="radarChart"></div>
+        <div id="bottomDiv">
+            <div id="lineDetail">
+                <div v-if="lastItemValue.length" class="valueTable">
+                    <div class="valueItem">
+                        <span>人口密度：</span>
+                        <p>{{lastItemValue[0]}}</p>
+                    </div>
+                    <div class="valueItem">
+                        <span>平均房价：</span>
+                        <p>{{lastItemValue[1]}}</p>
+                    </div>
+                    <div class="valueItem">
+                        <span>POI密度：</span>
+                        <p>{{lastItemValue[2]}}</p>
+                    </div>
+                    <div class="valueItem">
+                        <span>POI多样性：</span>
+                        <p>{{lastItemValue[3]}}</p>
+                    </div>
+                </div>
             </div>
-            <div class="sliderContainer">
-                <span>平均房价</span>
-                <el-slider v-model="housePriceWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
-            </div>
-            <div class="sliderContainer">
-                <span>POI密度</span>
-                <el-slider v-model="poiDensityWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
-            </div>
-            <div class="sliderContainer">
-                <span>POI多样性</span>
-                <el-slider v-model="poiDiversityWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
-            </div>
-            <div class="buttonContainer">
-                <el-button color="#ecf5ff" type="primary" @click="submit">计算</el-button>
-                <el-button color="#ecf5ff" type="primary" @click="reset" style="margin-left:0;margin-top:2rem">重置</el-button>
+            <div ref="weight" class="weight">
+                <div class="sliderContainer">
+                    <span class="weightspan">人口密度</span>
+                    <el-slider v-model="populationWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
+                </div>
+                <div class="sliderContainer">
+                    <span class="weightspan">平均房价</span>
+                    <el-slider v-model="housePriceWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
+                </div>
+                <div class="sliderContainer">
+                    <span class="weightspan">POI密度</span>
+                    <el-slider v-model="poiDensityWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
+                </div>
+                <div class="sliderContainer">
+                    <span class="weightspan">POI多样性</span>
+                    <el-slider v-model="poiDiversityWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
+                </div>
+                <div class="buttonContainer">
+                    <el-button color="#ecf5ff" type="primary" @click="submit">计算</el-button>
+                    <el-button color="#ecf5ff" type="primary" @click="reset" style="margin-left:0;margin-top:2rem">重置</el-button>
+                </div>
             </div>
         </div>
-        
     </div>
 </template>
 
@@ -207,17 +301,53 @@ watch(data.value,()=>{
     display: flex;
     flex-direction: column;
 }
+.clearButton{
+    width:10%;
+    background-color: #ecf5ff;
+    border: 1px solid #C4C4C4;
+    border-radius: 4px;
+}
 .radarChart{
     height: 50%;
     width: 100%;
 }
-.weight{
-    height: 40%;
-    width: 100%;
-    display: flex;
+#bottomDiv{
+    height:40%;
+    width:100%;
+    display:flex;
     flex-direction: row;
     align-items: center;
     justify-content: space-around;
+}
+#lineDetail{
+    height: 100%;
+    width: 25%;
+    display: flex;
+    flex-direction:column;
+    justify-content: center;
+    margin-left:1rem;
+    margin-bottom: 1.2rem;
+}
+.valueTable{
+    border: 1px solid #C4C4C4;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1); /* 添加阴影效果 */
+    border-radius: 4px; /* 添加圆角 */
+    background-color: #fff; /* 设置背景颜色 */
+}
+.valueItem{
+    display:flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content:start;
+    margin-left: 0.5rem;
+}
+.weight{
+    height: 100%;
+    width: 75%;
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
 }
 .sliderContainer{
     height: 100%;
@@ -225,7 +355,10 @@ watch(data.value,()=>{
     display: flex;
     flex-direction: column;
     align-items: center;
-    justify-content: center;
+    justify-content:center;
+}
+.weightspan{
+    margin-bottom: 1rem;
 }
 .buttonContainer{
     height: 100%;
