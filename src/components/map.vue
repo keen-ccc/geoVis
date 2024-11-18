@@ -93,6 +93,7 @@ var overlayMaps = {
 }
 
 var grid_bool = 0;
+var grid_size = ref(500)
 
 // const getGridData = async () => {
 //     let dataGeo = Cesium.GeoJsonDataSource.load("@/assets/grid_simple.geojson");
@@ -147,7 +148,7 @@ function saveGridSnapshot(bounds) {
 
 const addComparison = () => {
     const gridStore = useGridSelectorStore();
-    var {bound} = storeToRefs(gridStore);
+    var {gridID} = storeToRefs(gridStore);
     // console.log("imgURL"+saveGridSnapshot(bound))
 
     const mapElement = document.getElementById('mapContainer');
@@ -156,7 +157,7 @@ const addComparison = () => {
 
     html2canvas(mapElement).then(canvas => {
         imgUrl = canvas.toDataURL();
-        const newCard = {title:'block', score:60, bound: bound.value , imgUrl: imgUrl}
+        const newCard = {title:'block', score:60, grid: gridID.value , imgUrl: imgUrl}
         comparisonCards.value.push(newCard)
     })
     
@@ -179,6 +180,33 @@ const createMap = () => {
     map.value.on('overlayadd',(e)=>{
         if(e.name == '网格图'){
             initGridLayer(gridData)
+            // var cols = getFileName()
+            // var name = '/grid500/grid_500_'+cols[0]+'.geojson'
+            // console.log("name", name)
+            // d3.json(name).then(function(data) {
+            //     // 处理加载的数据
+            //     // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
+            //     gridData = data
+            //     // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
+            //     if(cols[1] !== cols[0]) {
+            //         name = '/grid500/grid_500_'+cols[1]+'.geojson'
+            //         d3.json(name).then(function(data) {
+            //             gridData.features.push(...data.features)
+            //             initGridLayer(gridData)
+                        
+            //         }).catch(function(error) {
+            //             console.error("Error loading the GeoJSON file:", error);
+            //         });
+            //     } else {
+            //         console.log("js"+JSON.stringify(gridData)); // 输出 GeoJSON 数据到控制台
+            //         initGridLayer(gridData)
+            //     }
+                
+            //     // initGridLayer(gridData)
+            // }).catch(function(error) {
+            //     console.error("Error loading the GeoJSON file:", error);
+            // });
+            
         }
     })
     map.value.on('overlayremove',(e)=>{
@@ -190,7 +218,7 @@ const createMap = () => {
 
     // 监听图层切换事件
     map.value.on('overlayadd',(e)=>{
-        console.log(e)
+        // console.log(e)
         if(e.name == '兴趣点层' && bankValue.value.length !== 4){
             bankValue.value = ['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行']
             updateDotmapLayer(poiData)
@@ -237,9 +265,27 @@ const createMap = () => {
     // }
 }
 
+// var map_bounds 
+const getFileName=()=> {
+    map_bounds = map.value.getBounds();
+    var west = map_bounds.getSouthWest().lng;
+    var east = map_bounds.getNorthEast().lng;
+    // console.log("west", west)
+    // console.log("east", east)
 
+    var min_x = 97.35620880100004
+ 
+    var meters_to_degrees_lon = 0.005195963570399859
+
+    var col1 = parseInt((west - min_x)/meters_to_degrees_lon/100)*100
+    var col2 = parseInt((east - min_x)/meters_to_degrees_lon/100)*100
+    console.log("col1", col1)
+    return [col1, col2]
+
+}
 
 const initGridLayer = (data1) => {
+
     // console.log("init")
     var data = data1;
     var svg;
@@ -249,7 +295,7 @@ const initGridLayer = (data1) => {
         svg = d3.select("#gridSvg")
         svg.selectAll("*").remove()
     }
-    
+    svg.raise()
     var g = svg.append("g").attr("class", "leaflet-zoom-hide");
 
     var transform = d3.geoTransform({point: projectPoint}),
@@ -276,20 +322,15 @@ const initGridLayer = (data1) => {
         const lonStart = southWest.lng
         const lonEnd = northEast.lng
 
-        //
-        const grid_size = 1000
+        // const grid_size = 1000
         const grid_width = 0.008983111749910169
         const grid_height = 0.010391927140799718
 
-
         // var simple_data = JSON.parse(grid_data).filter(item => item.longitude >= lonStart-grid_width && item.longitude <= lonEnd+grid_width && item.latitude >= latStart-grid_height && item.latitude <= latEnd+grid_height)
 
-        console.log("features"+data.features[0].geometry.coordinates[0][0][0])
-        console.log(lonStart)
-        console.log(lonEnd)
-        console.log(latStart)
-        console.log(latEnd)
-
+        console.log("lonStart-grid_width")
+        console.log(lonStart-grid_width)
+        console.log(lonEnd+grid_width)
         var simple_geo_data = data.features.filter(item => item.geometry.coordinates[0][0][0] >= lonStart-grid_width && item.geometry.coordinates[0][0][0] <= lonEnd+grid_width && item.geometry.coordinates[0][0][1] >= latStart-grid_height && item.geometry.coordinates[0][0][1] <= latEnd+grid_height)
 
         console.log("simple"+simple_geo_data.length)
@@ -348,20 +389,21 @@ const initGridLayer = (data1) => {
             .on("click", function(e, d){
                 // console.log(d)
                 const gridStore = useGridSelectorStore();
-                var point1 = d.geometry.coordinates[0][0];
-                var point2 = d.geometry.coordinates[0][2];
+                // var point1 = d.geometry.coordinates[0][0];
+                // var point2 = d.geometry.coordinates[0][2];
                 // Math.min(point1[1],point2[1])==latStart && Math.min(point1[0],point2[0])==lonStart
                 if(!selected.value){
                     addHightlight(this)
                     selected.value = true;
-                    gridStore.selectGrid(point1, point2)
+                    gridStore.selectGrid(d.properties.id)
+                    console.log("properties",gridStore.gridID)
                     selectedGrid = this
                 } else if(selectedGrid == this) {
                     selected.value = false;
                     removeHightlight(this)
                     gridStore.cancelGrid()
                 } else {
-                    gridStore.selectGrid(point1, point2);
+                    gridStore.selectGrid(d.properties.id);
                     addHightlight(this)
                     removeHightlight(selectedGrid)
                     selectedGrid = this
@@ -372,6 +414,7 @@ const initGridLayer = (data1) => {
     }
 
     function addHightlight(grid) {
+        d3.select(grid).raise();
         d3.select(grid)
             .attr("stroke", "red")
             .attr("stroke-width", 2)
@@ -614,7 +657,7 @@ onMounted(()=>{
         return {lat: d.lat, lon: d.lon, name: d.name, type: d.type}
     })
 
-    d3.json('/grids.geojson').then(function(data) {
+    d3.json('/grid_1000.geojson').then(function(data) {
         // 处理加载的数据
         // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
         gridData = data
