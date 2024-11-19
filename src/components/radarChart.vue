@@ -17,6 +17,7 @@ const populationWeight = ref(0.13)
 const housePriceWeight = ref(0.43)
 const poiDensityWeight = ref(0.36)
 const poiDiversityWeight = ref(0.31)
+const sumWeight = ref(1.23)
 var pathSelected = false
 const gridStore = useGridSelectorStore()
 const pathStore = pathGridStore()
@@ -24,9 +25,20 @@ const { bound,gridID } = storeToRefs(gridStore);
 const {pathID} = storeToRefs(pathStore)
 
 var populationScale,housePriceScale,poiDensityScale,poiDiversityScale,scoreScale = null;
-var populationMax,housePriceMax,poiDensityMax,poiDiversityMax,scoreMax = null;
-var populationMin,housePriceMin,poiDensityMin,poiDiversityMin,scoreMin = null;
+var populationMax = 165134.45;
+var housePriceMax = 55852.33;
+var poiDensityMax = 1333;
+var poiDiversityMax = 1.55;
+var scoreMax = 1;
+var populationMin = 0;
+var housePriceMin = 0;
+var poiDensityMin = 0;
+var poiDiversityMin = 0;
+var scoreMin = 0;
+
 const fetchData = async (bound) => {
+    sumWeight.value = populationWeight.value + housePriceWeight.value + poiDensityWeight.value + poiDiversityWeight.value
+    console.log("sum weight:",sumWeight.value)
     // 判断数据是否已经存在，避免重复添加
     // 根据 gridID 检查 data 中是否已包含对应数据
     const exists = data.value.some(item => item.gridID === gridID.value);
@@ -51,7 +63,8 @@ const fetchData = async (bound) => {
             populationWeight:populationWeight.value,
             housePriceWeight:housePriceWeight.value,
             poiDensityWeight:poiDensityWeight.value,
-            poiDiversityWeight:poiDiversityWeight.value
+            poiDiversityWeight:poiDiversityWeight.value,
+            sumWeight:sumWeight.value
     }
     //console.log(params)
     const res = await fetch('http://localhost:5000/api/cal_score',{
@@ -67,18 +80,18 @@ const fetchData = async (bound) => {
         console.log("radar data:",data.value)
 
         // 计算每个指标的最大值和最小值
-        populationMax = d3.max(data.value, d => d.value[0]);
-        housePriceMax = d3.max(data.value, d => d.value[1]);
-        poiDensityMax = d3.max(data.value, d => d.value[2]);
-        poiDiversityMax = d3.max(data.value, d => d.value[3]);
+        // populationMax = d3.max(data.value, d => d.value[0]);
+        // housePriceMax = d3.max(data.value, d => d.value[1]);
+        // poiDensityMax = d3.max(data.value, d => d.value[2]);
+        // poiDiversityMax = d3.max(data.value, d => d.value[3]);
 
-        populationMin = d3.min(data.value, d => d.value[0]);
-        housePriceMin = d3.min(data.value, d => d.value[1]);
-        poiDensityMin = d3.min(data.value, d => d.value[2]);
-        poiDiversityMin = d3.min(data.value, d => d.value[3]);
+        // populationMin = d3.min(data.value, d => d.value[0]);
+        // housePriceMin = d3.min(data.value, d => d.value[1]);
+        // poiDensityMin = d3.min(data.value, d => d.value[2]);
+        // poiDiversityMin = d3.min(data.value, d => d.value[3]);
 
-        scoreMax = d3.max(data.value, d => d.score);
-        scoreMin = d3.min(data.value, d => d.score);
+        // scoreMax = d3.max(data.value, d => d.score);
+        // scoreMin = d3.min(data.value, d => d.score);
 
         //createRadar()
 }
@@ -104,19 +117,19 @@ const createRadar = () => {
     // 动态设置比例尺的 domain
     populationScale = d3.scaleLinear()
         .range([radius*0.25, radius])
-        .domain([0, populationMax]);
+        .domain([0, 1]);
     housePriceScale = d3.scaleLinear()
         .range([radius*0.25, radius])
-        .domain([0, housePriceMax]);
+        .domain([0, 1]);
     poiDensityScale = d3.scaleLinear()
         .range([radius*0.25, radius])
-        .domain([0, poiDensityMax]);
+        .domain([0, 1]);
     poiDiversityScale = d3.scaleLinear()
         .range([radius*0.25, radius])
-        .domain([0, poiDiversityMax]);
+        .domain([0, 1]);
     scoreScale = d3.scaleLinear()
         .range([-Math.PI/2,Math.PI/2])
-        .domain([0, scoreMax]);
+        .domain([0, 1]);
 
 
     const rScale = d3.scaleLinear()
@@ -145,7 +158,21 @@ const createRadar = () => {
 
     data.value.forEach(d => {
         svg.append("path")
-            .datum(d.value)
+            .datum(dd => {
+                // 数组每一个指标分别进行归一化
+                return d.value.map((item, i) => {
+                    switch(i){
+                        case 0:
+                            return (item - populationMin) / (populationMax - populationMin);
+                        case 1:
+                            return (item - housePriceMin) / (housePriceMax - housePriceMin);
+                        case 2:
+                            return (item - poiDensityMin) / (poiDensityMax - poiDensityMin);
+                        case 3:
+                            return (item - poiDiversityMin) / (poiDiversityMax - poiDiversityMin);
+                    }
+                });
+            })
             .attr("d", radarLine)
             .attr('id', `grid-${d.gridID}`)
             .attr("class", "radarPath")
@@ -262,28 +289,29 @@ const highlightLine = (d) => {
     radarSvg.selectAll('.arcText').remove();
 
     // 创建一个新的弧形区域并显示得分
-    const arc = d3.arc()
-        .innerRadius(radius * 0.2)
-        .outerRadius(radius * 0.25)
-        .startAngle(-Math.PI)
-        .endAngle(scoreScale(d.score));
+    // const arc = d3.arc()
+    //     .innerRadius(radius * 0.2)
+    //     .outerRadius(radius * 0.25)
+    //     .startAngle(-Math.PI)
+    //     .endAngle(scoreScale(d.score));
 
-    radarSvg.append('path')
-        .attr('class', 'arcFill')
-        .attr('d', arc)
-        .attr('fill', '#1d7bd1'); // 设置颜色为蓝色
+    // radarSvg.append('path')
+    //     .attr('class', 'arcFill')
+    //     .attr('d', arc)
+    //     .attr('fill', '#1d7bd1'); // 设置颜色为蓝色
 
-    // 在小圆区域上添加文本，显示当前得分
-    radarSvg.append('text')
-        .attr('class', 'arcText')
-        .text(d.score.toFixed(2))  // 格式化得分为两位小数
-        .attr('x', 0)
-        .attr('y', -radius * 0.1)
-        .attr('text-anchor', 'middle')
-        .attr('dy', '0.5em')
-        .attr('font-size', 12)
-        .attr('fill', '#2B587D')  // 设置字体颜色
-        .attr('font-weight', 'bold'); // 设置加粗字体
+    // // 在小圆区域上添加文本，显示当前得分
+    // radarSvg.append('text')
+    //     .attr('class', 'arcText')
+    //     .text(d.score.toFixed(2))  // 格式化得分为两位小数
+    //     .attr('x', 100)
+    //     .attr('y', -radius * 0.1)
+    //     .raise()
+    //     .attr('text-anchor', 'middle')
+    //     .attr('dy', '0.5em')
+    //     .attr('font-size', 12)
+    //     .attr('fill', '#2B587D')  // 设置字体颜色
+    //     .attr('font-weight', 'bold'); // 设置加粗字体
 }
 const clearChart = () => {
     d3.select(radar.value).selectAll('path').remove()
@@ -291,12 +319,16 @@ const clearChart = () => {
     data.value.splice(0,data.value.length)
 }
 const calulateScore = () => {
+    sumWeight.value = populationWeight.value + housePriceWeight.value + poiDensityWeight.value + poiDiversityWeight.value
     // 利用新权重重新计算每组数据中的商业化水平分数score
     data.value.forEach(item => {
         console.log('-----------------------------------------')
-        console.log(populationWeight.value)
+        console.log(populationWeight.value/sumWeight.value)
         console.log(item.value[0],item.value[1],item.value[2],item.value[3])
-        item.score = populationWeight.value * item.value[0] + housePriceWeight.value * item.value[1] + poiDensityWeight.value + item.value[2] + poiDiversityWeight.value * item.value[3]
+        item.score = (populationWeight.value / sumWeight.value) * (item.value[0] / 165134.45)
+            + (housePriceWeight.value / sumWeight.value) * (item.value[1] / 55852.33)
+            + (poiDensityWeight.value / sumWeight.value) * (item.value[2] / 1333)
+            + (poiDiversityWeight.value / sumWeight.value) * (item.value[3] / 1.55);
         console.log(item.score)
     })
     console.log(data.value)
@@ -307,6 +339,7 @@ const reset = () => {
     housePriceWeight.value = 0.43
     poiDensityWeight.value = 0.36
     poiDiversityWeight.value = 0.31
+    sumWeight.value = 1.23
 }
 onMounted(()=>{
     // createRadar()
@@ -318,16 +351,16 @@ watch(bound,(newBound)=>{
 
 watch(data.value,()=>{
     // 计算每个指标的最大值和最小值
-    populationMax = d3.max(data.value, d => d.value[0]);
-    housePriceMax = d3.max(data.value, d => d.value[1]);
-    poiDensityMax = d3.max(data.value, d => d.value[2]);
-    poiDiversityMax = d3.max(data.value, d => d.value[3]);
-    populationMin = d3.min(data.value, d => d.value[0]);
-    housePriceMin = d3.min(data.value, d => d.value[1]);
-    poiDensityMin = d3.min(data.value, d => d.value[2]);
-    poiDiversityMin = d3.min(data.value, d => d.value[3]);
-    scoreMax = d3.max(data.value, d => d.score);
-    scoreMin = d3.min(data.value, d => d.score);
+    // populationMax = d3.max(data.value, d => d.value[0]);
+    // housePriceMax = d3.max(data.value, d => d.value[1]);
+    // poiDensityMax = d3.max(data.value, d => d.value[2]);
+    // poiDiversityMax = d3.max(data.value, d => d.value[3]);
+    // populationMin = d3.min(data.value, d => d.value[0]);
+    // housePriceMin = d3.min(data.value, d => d.value[1]);
+    // poiDensityMin = d3.min(data.value, d => d.value[2]);
+    // poiDiversityMin = d3.min(data.value, d => d.value[3]);
+    // scoreMax = d3.max(data.value, d => d.score);
+    // scoreMin = d3.min(data.value, d => d.score);
 
     console.log('data change')
     // gridSelected = true
