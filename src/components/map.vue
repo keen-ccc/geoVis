@@ -81,7 +81,7 @@ let dotmapLayer = ref(null)
 let gridLayer = ref(null)
 let aggregationLayer = ref(null)
 let panel1 = ref(null)
-var comparisonCards = ref([{title:'block', score:60, imgUrl:null}])
+var comparisonCards = ref([])
 
 // 图层切换控件
 var layerControl = null
@@ -98,6 +98,7 @@ var overlayMaps = {
 var heat_bool = 0;
 var grid_bool = 0;
 var grid_size = ref(500)
+var poiMax = 850;
 
 // const getGridData = async () => {
 //     let dataGeo = Cesium.GeoJsonDataSource.load("@/assets/grid_simple.geojson");
@@ -167,43 +168,74 @@ function saveGridSnapshot(bounds) {
 }
 
 
-const addComparison = () => {
+const addComparison = async () => {
     const gridStore = useGridSelectorStore();
-    var {gridID,bound} = storeToRefs(gridStore);
-    // console.log("imgURL"+saveGridSnapshot(bound))
+    var {gridID} = storeToRefs(gridStore);
+    var {bound} = storeToRefs(gridStore);
+    console.log("comparison"+bound.value.lonStart)
 
-    const mapElement = document.getElementById('mapContainer');
-    console.log('mapElement:', mapElement);
+
+    // const mapElement = document.getElementById('mapContainer');
+    // console.log('mapElement:', mapElement);
     var imgUrl = null;
 
-    const {left, top, width, height} = convertLatLngToPixel(bound.value)
+    // const {left, top, width, height} = convertLatLngToPixel(bound.value)
 
-    console.log(left, top, width, height)
-    html2canvas(mapElement,{
-        scale: window.devicePixelRatio,
-        x: left,
-        y: top,
-        width: width,
-        height: height
-    }).then(canvas => {
-        imgUrl = canvas.toDataURL();
-        const newCard = {title:'block', score:60, grid: gridID.value , imgUrl: imgUrl}
-        comparisonCards.value.push(newCard)
-    })
-    
-    function convertLatLngToPixel(bound){
-        // console.log(bound.latStart, bound.latEnd)
-        const point1 = map.value.latLngToLayerPoint(new L.LatLng(bound.latStart,bound.lonStart));
-        const point2 = map.value.latLngToLayerPoint(new L.LatLng(bound.latEnd,bound.lonEnd));
-        
-        console.log(point1, point2)
-        const left = point1.x
-        const top = point2.y
-        const width = point2.x - point1.x
-        const height = point1.y - point2.y
-
-        return {left, top, width, height}
+    const params = {
+        // gridID: gridID.value,
+        start_lon:bound.value.lonStart,
+        start_lat:bound.value.latStart,
+        end_lon:bound.value.lonEnd,
+        end_lat:bound.value.latEnd,
     }
+    // start_lon,start_lat,end_lon,end_lat,populationWeight,housePriceWeight,poiDensityWeight,poiDiversityWeight
+    const res = await fetch('http://localhost:5000/api/cal_poiNum', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(params)
+    })
+
+    if (!res.ok) {
+        // 请求失败，处理错误
+        console.error('Failed to fetch score:', res.statusText)
+        return
+    }
+
+    const data = await res.json()
+    // const score = data.score
+    // const score = await res.json().score
+    console.log("score", data)
+
+    const newCard = {title:'block', canyin: data.canyin, company: data.company, mall: data.mall, bank: data.bank, express: data.express, grid: gridID.value , imgUrl: imgUrl}
+    comparisonCards.value.push(newCard)
+    // console.log(left, top, width, height)
+    // html2canvas(mapElement,{
+    //     scale: window.devicePixelRatio,
+    //     x: left,
+    //     y: top,
+    //     width: width,
+    //     height: height
+    // }).then(canvas => {
+    //     imgUrl = canvas.toDataURL();
+    //     const newCard = {title:'block', score:60, grid: gridID.value , imgUrl: imgUrl}
+    //     comparisonCards.value.push(newCard)
+    // })
+    
+    // function convertLatLngToPixel(bound){
+    //     // console.log(bound.latStart, bound.latEnd)
+    //     const point1 = map.value.latLngToLayerPoint(new L.LatLng(bound.latStart,bound.lonStart));
+    //     const point2 = map.value.latLngToLayerPoint(new L.LatLng(bound.latEnd,bound.lonEnd));
+        
+    //     console.log(point1, point2)
+    //     const left = point1.x
+    //     const top = point2.y
+    //     const width = point2.x - point1.x
+    //     const height = point1.y - point2.y
+
+    //     return {left, top, width, height}
+    // }
     
 }
 
@@ -482,6 +514,7 @@ const initGridLayer = (data1) => {
 const initDotmapLayer = (data) => {
     //dotmapLayer.value = L.layerGroup()
     const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","dotmapLayer")
+    svg.lower();
     const g = svg.append("g").attr("class", "leaflet-zoom-hide")
 
     const transform = d3.geoTransform({point: projectPoint})
@@ -733,13 +766,25 @@ watch(dataSource,(newdataSource)=>{
         })
     }
 })
-
+const getPoiMax = async () => {
+    const response = await fetch('http://localhost:5000/api/get_poiNum', {
+        method: 'GET',
+        headers: {
+            'Content-Type': 'application/json'
+        }
+    })
+    const data = await response.json();
+    console.log("poi",data.poiMax)
+    poiMax = data.poiMax
+}
 onMounted(()=>{
     map.value = L.map('mapContainer', {attributionControl: false,
     layers:[baseMapLayer]
 }
     ).setView(getCity(city.value), 11)
-
+    
+    // getPoiMax();
+    
     d3.csv('/jpBank.csv').then((data) => {
         //console.log(data)
     poiData = data.map((d) => {
@@ -818,11 +863,41 @@ onMounted(()=>{
                     <!-- <img :src="picPath"> -->
                     <div v-for="(card, index) in comparisonCards" :key="index" class="card">
                         <div>
-                            <h3>{{ card.title }}</h3>
+                            <h3>{{ card.grid }}</h3>
                             <!-- <img :src="card.imgUrl"  alt="Card Image"/>
                             <p>{{ card.imgUrl }}</p> -->
-                            <p>商业化水平</p>
-                            <el-progress :percentage="card.score" :show-text="false"/>
+                            <p style="margin: 0;">餐饮</p>
+                            <div class="progress">
+                                <el-progress :percentage="card.canyin/poiMax*100" :show-text="false">
+                                    <!-- <el-button text>content</el-button> -->
+                                </el-progress>
+                                <p style="text-align: center; margin: 0;">{{ card.canyin }}</p>
+                            </div>
+                            
+                            <p style="margin: 0;">企业</p>
+                            <div class="progress">
+                                <el-progress :percentage="card.company/poiMax*100" :show-text="false"/>
+                                <p style="text-align: center; margin: 0;">{{ card.company }}</p>
+                            </div>
+                            
+                            <p style="margin: 0;">商场</p>
+                            <div class="progress">
+                                <el-progress :percentage="card.mall/poiMax*100" :show-text="false"/>
+                                <p style="text-align: center; margin: 0;">{{ card.mall }}</p>
+                            </div>
+                            
+                            <p style="margin: 0;">银行</p>
+                            <div class="progress">
+                                <el-progress :percentage="card.bank/poiMax*100" :show-text="false"/>
+                                <p style="text-align: center; margin: 0;">{{ card.bank }}</p>
+                            </div>
+                            
+                            <p style="margin: 0;">物流</p>
+                            <div class="progress">
+                                <el-progress :percentage="card.express/poiMax*100" :show-text="false"/>
+                                <p style="text-align: center; margin: 0;">{{ card.express }}</p>
+                            </div>
+                            
                         </div>
                         <div class="button">
                             <el-button size="small" :icon="Delete" circle @click="deleteComparison(index)"/>
@@ -863,6 +938,11 @@ onMounted(()=>{
     width: 400px;
 }
 .card{
+    width: 100%;
+    display: grid;
+    grid-template-columns: 6fr 1fr;
+}
+.progress{
     width: 100%;
     display: grid;
     grid-template-columns: 4fr 1fr;
