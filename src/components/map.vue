@@ -16,6 +16,7 @@ import {dotColors,expressDotColors,getDotColors,getExpressDotColors} from '../ut
 import detailTable from './detailTable.vue';
 import { color } from 'echarts';
 import {useGridSelectorStore} from '@/store/gridSelector'
+import {pathGridStore} from '@/store/pathSelector'
 import { storeToRefs } from 'pinia'
 import html2canvas from "html2canvas";
 import {Delete} from '@element-plus/icons-vue'
@@ -55,6 +56,8 @@ const city = ref('成都市')
 const bankValue = ref(['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行'])
 const expressValue = ref(['菜鸟','顺丰','京东','申通','圆通','中通','韵达','邮政'])
 const dataSource = ref('bank')
+const pathStore = pathGridStore()
+const {pathID} = storeToRefs(pathStore)
 let dataSourceFlag = true // true:银行  false:物流
 let poiData = []
 let gridData = []
@@ -170,6 +173,7 @@ const addComparison = async () => {
     var {gridID} = storeToRefs(gridStore);
     var {bound} = storeToRefs(gridStore);
     console.log("comparison"+bound.value.lonStart)
+
 
     // const mapElement = document.getElementById('mapContainer');
     // console.log('mapElement:', mapElement);
@@ -434,6 +438,9 @@ const initGridLayer = (data1) => {
             .data(simple_geo_data)
             .enter()
             .append("rect")
+            .attr('id',d=>{
+                return `grid-${d.properties.id}`
+            })
             .attr("x", d=>{
                 var point = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
                 return point.x;
@@ -494,7 +501,7 @@ const initGridLayer = (data1) => {
 
     function removeHightlight(grid) {
         d3.select(grid)
-            .attr("stroke", "white")
+            .attr("stroke", "#737373")
             .attr("stroke-width", 1)
     }
 
@@ -662,6 +669,18 @@ const createAggregationLayer = () => {
     })
     aggregationLayer.value.addLayer(markers)
 }
+watch(pathID,()=>{
+    console.log(pathID.value)
+    // 取消网格高亮
+    d3.selectAll('rect')            
+            .attr("stroke", "#737373")
+            .attr("stroke-width", 1)
+    // 根据pathID高亮rect
+    d3.select(`#grid-${pathID.value}`)
+            .raise()       
+            .attr("stroke", "red")
+            .attr("stroke-width", 2)
+})
 
 watch(city, (newCity) => {
   if (map.value && getCity(newCity)) {
