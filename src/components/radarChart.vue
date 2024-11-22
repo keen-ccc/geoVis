@@ -187,7 +187,7 @@ const createRadar = () => {
                 //确定选择的path（对应网格）
                 pathStore.selectPath(d.gridID)
                 console.log("pathID:",pathStore.pathID)
-                console.log(d3.select(this).style('stroke'))
+                console.log(d3.select(this))
                 svg.selectAll('path').style('stroke','#BCBCBC').style('stroke-width',2)
                 if(d3.select(this).style('stroke') === 'rgb(188, 188, 188)'){
                     d3.select(this).style('stroke','rgb(126, 168, 203)').style('stroke-width',4)
@@ -315,6 +315,9 @@ const highlightLine = (d) => {
 }
 const clearChart = () => {
     d3.select(radar.value).selectAll('path').remove()
+    d3.select(radar.value).selectAll('text').remove()
+    // pathID = -1
+    pathStore.cancelPath()
     // 清除data
     data.value.splice(0,data.value.length)
 }
@@ -365,6 +368,13 @@ watch(data.value,()=>{
     console.log('data change')
     // gridSelected = true
     // console.log(gridSelected)
+    console.log(lastItemValue)
+    if(data.value.length === 0){
+        // 清空lastItemV
+        lastItemValue.splice(0,lastItemValue.length)
+        console.log(lastItemValue)
+        return
+    }
     lastItem.value = data.value[data.value.length-1]
     lastItemValue.splice(0,lastItemValue.length,...lastItem.value.value.map(d => d.toFixed(2)))
     // 保留一位小数
@@ -393,7 +403,7 @@ watch(data.value,()=>{
         <div ref="radar" class="radarChart"></div>
         <div id="bottomDiv">
             <div id="lineDetail">
-                <div v-if="lastItemValue.length" class="valueTable">
+                <div  class="valueTable">
                     <div class="valueItem">
                         <span>人口密度：</span>
                         <p>{{lastItemValue[0]}}</p>

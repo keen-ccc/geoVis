@@ -253,6 +253,23 @@ const createMap = () => {
 
     // 监听图层切换事件
     map.value.on('overlayadd',(e)=>{
+        // console.log(e)
+        if(e.name == '兴趣点层' && bankValue.value.length !== 4){
+            bankValue.value = ['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行']
+            updateDotmapLayer(poiData)
+        }
+        if(e.name == '兴趣点层' && expressValue.value.length !== 7){
+            expressValue.value =['菜鸟','顺丰','京东','申通','圆通','中通','韵达','邮政']
+            updateDotmapLayer(poiData)
+        }
+        // if(e.name == '热力层' ){
+        //     console.log(poiData)
+        //     // heatmapLayer.value.remove()
+        //     heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 50, blur: 35, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
+        // }
+        if(e.name == '聚合点层'){
+            createAggregationLayer()
+        }
         if(e.name == '网格图'){
             initGridLayer(gridData)
             // var cols = getFileName()
@@ -285,37 +302,15 @@ const createMap = () => {
         }
     })
     map.value.on('overlayremove',(e)=>{
-        if(e.name == '网格图'){
-            //删除生成的svg
-            d3.select("#gridSvg").selectAll("*").remove()
-        }
-    })
-
-    // 监听图层切换事件
-    map.value.on('overlayadd',(e)=>{
-        // console.log(e)
-        if(e.name == '兴趣点层' && bankValue.value.length !== 4){
-            bankValue.value = ['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行']
-            updateDotmapLayer(poiData)
-        }
-        if(e.name == '兴趣点层' && expressValue.value.length !== 7){
-            expressValue.value =['菜鸟','顺丰','京东','申通','圆通','中通','韵达','邮政']
-            updateDotmapLayer(poiData)
-        }
-        // if(e.name == '热力层' ){
-        //     console.log(poiData)
-        //     // heatmapLayer.value.remove()
-        //     heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 50, blur: 35, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
-        // }
-        if(e.name == '聚合点层'){
-            createAggregationLayer()
-        }
-    })
-    map.value.on('overlayremove',(e)=>{
         if(e.name == '兴趣点层'){
             console.log('remove 兴趣点')
             //删除生成的svg
             d3.select(map.value.getPanes().overlayPane).selectAll('#dotmapLayer').remove()
+        }
+        if(e.name == '网格图'){
+            console.log('remove 网格')
+            //删除生成的svg
+            d3.select(map.value.getPanes().overlayPane).selectAll('#gridSvg').remove()
         }
         if(e.name == '热力层'){
             console.log('remove')
@@ -370,7 +365,7 @@ const initGridLayer = (data1) => {
         svg = d3.select("#gridSvg")
         svg.selectAll("*").remove()
     }
-    svg.raise()
+    //svg.raise()
     var g = svg.append("g").attr("class", "leaflet-zoom-hide");
 
     var transform = d3.geoTransform({point: projectPoint}),
@@ -462,8 +457,19 @@ const initGridLayer = (data1) => {
             })
             // .attr("fill", "blue")
             .attr("fill-opacity", 0.05)
-            .attr("stroke", "#737373")
+            .attr("stroke",d => {
+                // console.log(pathID.value,d.properties.id)
+                // if(pathID.value == d.properties.id){
+                //     console.log("red")
+                //     return "red"
+                // }
+                // else{
+                //     return "#737373"
+                // }
+                return "#737373"
+            })
             .attr("stroke-width", 1)
+            //.attr('pointer-events','all')
             .on("click", function(e, d){
                 console.log(d)
                 const gridStore = useGridSelectorStore();
@@ -514,7 +520,7 @@ const initGridLayer = (data1) => {
 const initDotmapLayer = (data) => {
     //dotmapLayer.value = L.layerGroup()
     const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","dotmapLayer")
-    svg.lower();
+    //svg.lower();
     const g = svg.append("g").attr("class", "leaflet-zoom-hide")
 
     const transform = d3.geoTransform({point: projectPoint})
@@ -917,6 +923,9 @@ onMounted(()=>{
 </template>
 
 <style>
+svg.overlay {
+    pointer-events: none;
+}
 .controlBar{
     height: 3%;
     width: 100%;
