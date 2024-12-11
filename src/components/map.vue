@@ -71,6 +71,14 @@ const headings = [
         value:'tab2'
     }
 ]
+const props1 = {
+  checkStrictly: true,
+//   emitPath:false,
+  value:'value',
+  label:'label',
+  children:'children'
+}
+
 // 图层
 let baseMapLayer = L.tileLayer('https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',{
     maxZoom: 16,
@@ -689,16 +697,24 @@ watch(pathID,()=>{
 })
 
 watch(city, (newCity) => {
-  if (map.value && getCity(newCity)) {
-    map.value.setView(getCity(newCity), 10)
+    console.log(newCity)
+    const selectedCity = newCity[newCity.length - 1]
+    const coords = getCity(cities,selectedCity)
+    console.log(coords)
+  if (map.value && coords) {
+    //判断newCity的长度
+    if(newCity.length > 1){
+        map.value.setView(coords, 13)
+    }
+    else{
+        map.value.setView(coords, 11)
+    }
     if(map.value.hasLayer(dotmapLayer.value)){
-
         updateDotmapLayer(poiData)
     }
     initGridLayer(gridData)
     controlGridLayer()
   }
-
 })
 watch(bankValue, (newBankValue) => {
   if (map.value && poiData && bankValue.value.length > 0) {
@@ -787,7 +803,7 @@ onMounted(()=>{
     map.value = L.map('mapContainer', {attributionControl: false,
     layers:[baseMapLayer]
 }
-    ).setView(getCity(city.value), 11)
+    ).setView(getCity(cities,city.value), 11)
     
     // getPoiMax();
     
@@ -829,9 +845,11 @@ onMounted(()=>{
         <div class="controlBar">
             <div class="controlbar-content">
                 <span style="font-weight: bold;margin-right:10px">城市选择</span>
-                <el-select v-model="city" placeholder="Select" style="width: 70%;">
+                <!-- <el-select v-model="city" placeholder="Select" style="width: 70%;">
                     <el-option v-for="(latlon,cityname) in cities" :key="cityname" :label="cityname" :value="cityname"></el-option>
-                </el-select>
+                </el-select> -->
+                <!-- 级联选择器:城市、区县 -->
+                <el-cascader v-model="city" :options="cities" :props="props1" clearable />
             </div>
             <div class="controlbar-content">
                 <span style="font-weight: bold;margin-right:10px">数据源选择</span>
