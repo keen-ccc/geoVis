@@ -3,6 +3,7 @@ import detailTable from "./detailTable.vue"
 import Map from './map.vue'
 import radarChart from './radarChart.vue'
 import poiDetail from './poiDetail.vue'
+import areaControl from "./areaControl.vue"
 import { onMounted, onUnmounted } from 'vue';
 
 onMounted(() => {
@@ -18,6 +19,9 @@ onUnmounted(() => {
     <div class="grid-container">
         <div class="title">
             GeoVis
+        </div>
+        <div  class="control-container">
+            <areaControl></areaControl>
         </div>
         <div class="map-container">
             <Map/>
@@ -40,7 +44,7 @@ onUnmounted(() => {
     height: 100vh;
     width: 100%;
     display:grid;
-    grid-template-columns: 5fr 3fr;
+    grid-template-columns:1.5fr 4fr 2fr;
     grid-template-rows:2rem 1fr;
 }
 .title{
@@ -52,15 +56,20 @@ onUnmounted(() => {
     font-size: 1.5rem;
 
 }
-.map-container{
+.control-container{
     grid-column:1;
+    grid-row:2;
+    border:1px solid #b5b5b5;
+}
+.map-container{
+    grid-column:2;
     grid-row:span 2;
     border:1px solid #b5b5b5;
     width: 100%;
     height: 100%;
 }
 .info-container{
-    grid-column:2;
+    grid-column:3;
     grid-row:span 2;
     display:grid;
     grid-template-rows: 1fr 1fr;

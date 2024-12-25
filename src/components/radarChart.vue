@@ -78,22 +78,6 @@ const fetchData = async (bound) => {
         data.value.push(result); // 如果不存在，则将新结果添加到 data 中
 
         console.log("radar data:",data.value)
-
-        // 计算每个指标的最大值和最小值
-        // populationMax = d3.max(data.value, d => d.value[0]);
-        // housePriceMax = d3.max(data.value, d => d.value[1]);
-        // poiDensityMax = d3.max(data.value, d => d.value[2]);
-        // poiDiversityMax = d3.max(data.value, d => d.value[3]);
-
-        // populationMin = d3.min(data.value, d => d.value[0]);
-        // housePriceMin = d3.min(data.value, d => d.value[1]);
-        // poiDensityMin = d3.min(data.value, d => d.value[2]);
-        // poiDiversityMin = d3.min(data.value, d => d.value[3]);
-
-        // scoreMax = d3.max(data.value, d => d.score);
-        // scoreMin = d3.min(data.value, d => d.score);
-
-        //createRadar()
 }
 const createRadar = () => {
     d3.select(radar.value).selectAll('*').remove()
@@ -174,10 +158,17 @@ const createRadar = () => {
                 });
             })
             .attr("d", radarLine)
-            .attr('id', `grid-${d.gridID}`)
+            .attr('id', function(e,dd){
+                //判断是网点网格还是普通网格
+                if(d.gridID < 1156){
+                    return `netgrid-${d.gridID}`
+                }else{
+                    return `grid-${d.gridID}`
+                }
+            })
             .attr("class", "radarPath")
             .style("fill", "none")
-            .style("stroke", "#BCBCBC")
+            .style("stroke", "#737373")
             .style("stroke-width", 2)
             .style('stroke-opacity',0.8)
             .on('click',function(){
@@ -187,10 +178,11 @@ const createRadar = () => {
                 //确定选择的path（对应网格）
                 pathStore.selectPath(d.gridID)
                 console.log("pathID:",pathStore.pathID)
-                console.log(d3.select(this))
-                svg.selectAll('path').style('stroke','#BCBCBC').style('stroke-width',2)
-                if(d3.select(this).style('stroke') === 'rgb(188, 188, 188)'){
-                    d3.select(this).style('stroke','rgb(126, 168, 203)').style('stroke-width',4)
+                console.log(d3.select(this).style('stroke'))
+                svg.selectAll('path').style('stroke','#737373').style('stroke-width',2)
+                if(d3.select(this).style('stroke') === 'rgb(115, 115, 115)'){
+                    console.log('change color')
+                    d3.select(this).style('stroke','#7EA8CB').style('stroke-width',4)
                 }
                 d3.selectAll('.arcFill').remove()
                 d3.selectAll('.arcText').remove()
@@ -272,16 +264,28 @@ const highlightLine = (d) => {
    // 重置所有路径的样式
    const radarSvg = d3.select('#radarSvg')
    radarSvg.selectAll('path')
-        .style('stroke', '#BCBCBC')  // 设置默认的灰色边框
+        .style('stroke', '#737373')  // 设置默认的灰色边框
         .style('stroke-width', 2);   // 恢复默认的边框宽度
 
     // 检查当前路径的颜色并设置高亮
-    const selectedPath = radarSvg.select(`#grid-${d.gridID}`); // 使用 gridID 选择当前路径
-    const isSelected = selectedPath.style('stroke') === 'rgb(188, 188, 188)'; // 如果是默认颜色，则选中
-
-    if (isSelected) {
-        selectedPath.style('stroke', 'rgb(126, 168, 203)') // 高亮颜色
-                    .style('stroke-width', 4); // 增加宽度
+    //检测是否是网点网格
+    if(d.gridID < 1156){
+        const selectedPath = radarSvg.select(`#netgrid-${d.gridID}`); // 使用 gridID 选择当前路径
+        const isSelected = selectedPath.style('stroke') === 'rgb(115, 115, 115)'; // 如果是默认颜色，则选中
+        if (isSelected) {
+            selectedPath.style('stroke', '#7EA8CB') // 高亮颜色
+                        .style('stroke-width', 4); // 增加宽度
+        }
+        return
+    }
+    else{
+        const selectedPath = radarSvg.select(`#grid-${d.gridID}`); // 使用 gridID 选择当前路径
+        const isSelected = selectedPath.style('stroke') === 'rgb(115, 115, 115)'; // 如果是默认颜色，则选中
+        console.log(selectedPath)
+        if (isSelected) {
+            selectedPath.style('stroke', '#7EA8CB') // 高亮颜色
+                        .style('stroke-width', 4); // 增加宽度
+        }
     }
 
     // 清除之前的 arc 和文本
@@ -513,6 +517,9 @@ watch(data.value,()=>{
 }
 .weightspan{
     margin-bottom: 1rem;
+}
+.el-slider{
+    --el-slider-main-bg-color: #98B9D5; /* 更改滑块主背景色 */
 }
 .buttonContainer{
     height: 100%;

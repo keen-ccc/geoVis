@@ -17,6 +17,7 @@ import detailTable from './detailTable.vue';
 import { color } from 'echarts';
 import {useGridSelectorStore} from '@/store/gridSelector'
 import {pathGridStore} from '@/store/pathSelector'
+import {useNetSelectorStore} from '@/store/netSelector'
 import { storeToRefs } from 'pinia'
 import html2canvas from "html2canvas";
 import {Delete} from '@element-plus/icons-vue'
@@ -48,12 +49,15 @@ L.Marker.include({
 		this._setPos(pos);
 	},
 });
-
+// 初始化 Pinia store
+const netSelectorStore = useNetSelectorStore();
 var selected = ref(false)
+var selectedNetFlag = ref(false)
 var selectedGrid = null 
+var selectedNet = null
 const map =ref(null)
 const city = ref('成都市')
-const bankValue = ref(['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行'])
+const bankValue = ref(['中国邮政储蓄银行','中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行'])
 const expressValue = ref(['菜鸟','顺丰','京东','申通','圆通','中通','韵达','邮政'])
 const dataSource = ref('bank')
 const pathStore = pathGridStore()
@@ -81,7 +85,7 @@ const props1 = {
 
 // 图层
 let baseMapLayer = L.tileLayer('https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',{
-    maxZoom: 16,
+    maxZoom: 20,
     minZoom: 6,
 })
 let heatmapLayer = ref(null)
@@ -114,16 +118,30 @@ var poiMax = 850;
 // }
 const controlGridLayer = () => {
     var zoomLevel = map.value.getZoom();
-    if (zoomLevel < 15 && grid_bool == 1) {
-        // 在缩放级别小于15时，移除图层控制器中的 Layer 3
+    // if (zoomLevel < 15 && grid_bool == 1) {
+    //     // 在缩放级别小于15时，移除图层控制器中的 Layer 3
+    //     layerControl.removeLayer(gridLayer.value);
+    //     // map.value.removeLayer(gridLayer.value);
+    //     grid_bool = 0;
+    // } else if(zoomLevel >= 15 && grid_bool == 0){
+    //     // 在缩放级别大于等于15时，添加图层控制器中的 Layer 3
+    //     layerControl.addOverlay(gridLayer.value, "网格图");
+    //     map.value.addLayer(gridLayer.value)
+    //     grid_bool = 1;
+    // }
+    if(zoomLevel >=15 && grid_bool==0){
+        // 如果没有添加控件
+        console.log(layerControl._layers[2])
+        if(layerControl._layers[4] == undefined){
+            layerControl.addOverlay(gridLayer.value, "网格图");
+        }
+        // map.value.addLayer(gridLayer.value)
+        // grid_bool = 1;
+    }
+    else{
         layerControl.removeLayer(gridLayer.value);
-        // map.value.removeLayer(gridLayer.value);
-        grid_bool = 0;
-    } else if(zoomLevel >= 15 && grid_bool == 0){
-        // 在缩放级别大于等于15时，添加图层控制器中的 Layer 3
-        layerControl.addOverlay(gridLayer.value, "网格图");
-        map.value.addLayer(gridLayer.value)
-        grid_bool = 1;
+        d3.select('#gridSvg').remove()
+        // grid_bool = 0;
     }
     if(zoomLevel >=15 && map.value.hasLayer(heatmapLayer.value) && heat_bool == 0){
         heatmapLayer.value.remove()
@@ -217,38 +235,15 @@ const addComparison = async () => {
     console.log("score", data)
 
     const newCard = {title:'block', canyin: data.canyin, company: data.company, mall: data.mall, bank: data.bank, express: data.express, grid: gridID.value , imgUrl: imgUrl}
-    comparisonCards.value.push(newCard)
-    // console.log(left, top, width, height)
-    // html2canvas(mapElement,{
-    //     scale: window.devicePixelRatio,
-    //     x: left,
-    //     y: top,
-    //     width: width,
-    //     height: height
-    // }).then(canvas => {
-    //     imgUrl = canvas.toDataURL();
-    //     const newCard = {title:'block', score:60, grid: gridID.value , imgUrl: imgUrl}
-    //     comparisonCards.value.push(newCard)
-    // })
-    
-    // function convertLatLngToPixel(bound){
-    //     // console.log(bound.latStart, bound.latEnd)
-    //     const point1 = map.value.latLngToLayerPoint(new L.LatLng(bound.latStart,bound.lonStart));
-    //     const point2 = map.value.latLngToLayerPoint(new L.LatLng(bound.latEnd,bound.lonEnd));
-        
-    //     console.log(point1, point2)
-    //     const left = point1.x
-    //     const top = point2.y
-    //     const width = point2.x - point1.x
-    //     const height = point1.y - point2.y
-
-    //     return {left, top, width, height}
-    // }
-    
+    comparisonCards.value.push(newCard)    
 }
 
 const deleteComparison = (index) => {
     comparisonCards.value.splice(index, 1);
+}
+
+const clearGrid = () => {
+    d3.select('#net-grid').remove()
 }
 
 const createMap = () => {
@@ -263,7 +258,7 @@ const createMap = () => {
     map.value.on('overlayadd',(e)=>{
         // console.log(e)
         if(e.name == '兴趣点层' && bankValue.value.length !== 4){
-            bankValue.value = ['中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行']
+            bankValue.value = ['中国邮政储蓄银行','中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行']
             updateDotmapLayer(poiData)
         }
         if(e.name == '兴趣点层' && expressValue.value.length !== 7){
@@ -328,6 +323,7 @@ const createMap = () => {
             aggregationLayer.value.clearLayers()
         }
     })
+
     // createGrid()
     // createAggregationLayer()
     // 如果热力图层已初始化，则添加到地图
@@ -466,14 +462,6 @@ const initGridLayer = (data1) => {
             // .attr("fill", "blue")
             .attr("fill-opacity", 0.05)
             .attr("stroke",d => {
-                // console.log(pathID.value,d.properties.id)
-                // if(pathID.value == d.properties.id){
-                //     console.log("red")
-                //     return "red"
-                // }
-                // else{
-                //     return "#737373"
-                // }
                 return "#737373"
             })
             .attr("stroke-width", 1)
@@ -560,6 +548,12 @@ const initDotmapLayer = (data) => {
                     return getDotColors('交通银行')
                 } else if (d.properties.type.includes('中国银行')) {
                     return getDotColors('中国银行')
+                } else if(d.properties.type.includes('邮政')){
+                    return getDotColors('中国邮政')
+                }
+                else{
+                    // 不显示
+                    return 'none'
                 }
             }
             else if(d.properties && d.properties.type && dataSourceFlag == false){
@@ -602,18 +596,22 @@ const initDotmapLayer = (data) => {
         })
         .on('mousemove',function(e,d){
             // 获取circle位置
-            const bbox = this.getBoundingClientRect()
-            const mouseX = bbox.x - bbox.width
-            const mouseY = bbox.y - bbox.height - 30
-            // const mouseX = e.clientX
-            // const mouseY = e.clientY - 40
-            console.log(mouseX, mouseY)
-              //console.log(mouseX, mouseY);
+            const mouseX = e.clientX + 10
+            const mouseY = e.clientY + 10
             d3.select('#circle-tooltip').style('left',`${mouseX}px`).style('top', `${mouseY}px`);
         })
         .on('mouseout',function(e,d){
             d3.select(this).attr('stroke','none')
             d3.select('#circle-tooltip').style('display','none');
+        })
+        .on(('click'),function(e,d){
+            // 只能选择邮政网点
+            if(d.properties.type.includes('邮政')){
+                console.log(d.properties.name)
+                //记录选中的网点的全局状态
+                netSelectorStore.setSelectedNet(d.properties)
+                generateGrid(d.properties.lat,d.properties.lon)
+            }
         })
 
     map.value.on("zoomend", reset)
@@ -655,6 +653,200 @@ const initDotmapLayer = (data) => {
         this.stream.point(point.x, point.y)
     }
 }
+// 生成网点周边网格
+const generateGrid = (lat,lon) => {
+    console.log("generateGrid")
+
+    // 强制转换为数字类型
+    const numericLat = parseFloat(lat);
+    const numericLon = parseFloat(lon);
+
+    const range = netSelectorStore.range;
+    const gridSize = netSelectorStore.gridSize;
+    console.log(range,gridSize)
+    //清除已有网格
+    if(map.value.gridLayer){
+        console.log("remove grid")
+        //删除生成的svg
+        d3.select('#net-grid').remove()
+        map.value.removeLayer(map.value.gridLayer)
+    }
+    //创建一个新的svg
+    // const svg = d3.select(map.value.getPanes().overlayPane).append("svg")
+    //     .attr("id","net-grid")
+    //     // .attr('width',map.value.getSize().x)
+    //     // .attr('height',map.value.getSize().y)
+    //     .attr('width',3000)
+    //     .attr('height',3000)
+    //     .style('position','absolute')
+    //     .style('left',0)
+    //     .style('top',0)
+    // const g = svg.append("g").attr("class", "leaflet-zoom-hide")
+
+    //计算网格边界
+    // 计算缓冲范围（例如，增加一倍的范围作为缓冲）
+    const buffer = gridSize * 0; // 根据需要调整缓冲量
+    const extendedRange = range + buffer;
+
+    // 计算网格边界，包括缓冲区
+    const bounds = {
+        north: numericLat + (extendedRange / 2) / 111320,
+        south: numericLat - (extendedRange / 2) / 111320,
+        east: numericLon + (extendedRange / 2) / (40075000 * Math.cos(numericLat * Math.PI / 180) / 360),
+        west: numericLon - (extendedRange / 2) / (40075000 * Math.cos(numericLat * Math.PI / 180) / 360)
+    };
+    console.log(bounds)
+
+    const latStep = gridSize / 111320
+    const lonStep = gridSize / (40075000 * Math.cos(numericLat * Math.PI / 180) / 360)
+
+    const numLatSteps = Math.ceil(range/gridSize)
+    const numLonSteps = Math.ceil(range/gridSize)
+    // console.log("Latitude Step:", gridSize / 111320);
+    // console.log("Longitude Step:", gridSize / (40075000 * Math.cos(lat * Math.PI / 180) / 360));
+    //生成网格数据
+    var netGridData = []
+    for(let i = 0;i<numLatSteps;i++){
+        for(let  j = 0;j<numLonSteps;j++){
+            const cellSouth = bounds.south + i * latStep
+            const cellWest = bounds.west + j * lonStep
+            netGridData.push({
+                id:i*numLonSteps+j,
+                south:cellSouth,
+                west:cellWest,
+                north:cellSouth + latStep,
+                east:cellWest + lonStep
+            })
+        }
+    }
+    // console.log(netGridData)
+
+    // 计算 SVG 的宽度和高度
+    const topLeft = map.value.latLngToLayerPoint([bounds.north, bounds.west]);
+    const bottomRight = map.value.latLngToLayerPoint([bounds.south, bounds.east]);
+    const svgWidth = bottomRight.x - topLeft.x;
+    const svgHeight = bottomRight.y - topLeft.y;
+
+    // 创建 SVG 并设置宽高和位置
+    const svg = d3.select(map.value.getPanes().overlayPane)
+        .append("svg")
+        .attr("id", "net-grid")
+        .attr('width', svgWidth)
+        .attr('height', svgHeight)
+        .style('position', 'absolute')
+        .style('left', topLeft.x + 'px')
+        .style('top', topLeft.y + 'px');
+
+    const g = svg.append("g").attr("class", "leaflet-zoom-hide");
+
+    //绘制网格
+    // 绑定数据并绘制网格
+    const rects = g.selectAll('rect')
+        .data(netGridData)
+        .enter()
+        .append('rect')
+        .attr('id',d=>{
+                return `netgrid-${d.id}`
+        })
+        .attr('x', cell => map.value.latLngToLayerPoint([cell.south, cell.west]).x-topLeft.x)
+        .attr('y', cell => map.value.latLngToLayerPoint([cell.north, cell.east]).y-topLeft.y)
+        .attr('width', cell => {
+            const bottomLeft = map.value.latLngToLayerPoint([cell.south, cell.west]);
+            const topRight = map.value.latLngToLayerPoint([cell.north, cell.east]);
+            return topRight.x - bottomLeft.x;
+        })
+        .attr('height', cell => {
+            const bottomLeft = map.value.latLngToLayerPoint([cell.south, cell.west]);
+            const topRight = map.value.latLngToLayerPoint([cell.north, cell.east]);
+            return bottomLeft.y - topRight.y;
+        })
+        .attr('fill', 'none')
+        .attr('stroke', '#737373')
+        .attr('stroke-width', 2)
+        .style('pointer-events', 'all') // 确保矩形可以接收事件
+        .on('click', function(event, d) {
+            console.log("Clicked cell:", d);
+            var point1 = [d.west,d.south]
+            var point2 = [d.east,d.north]
+            const gridStore = useGridSelectorStore();
+            if(selectedNetFlag.value){
+                gridStore.selectGrid(d.id, point1, point2)
+                addHightlight(this);
+                removeHightlight(selectedNet);
+                selectedNet = this;
+            }
+            else if(selectedNet == this){
+                selectedNetFlag.value = false;
+                removeHightlight(this);
+                gridStore.cancelGrid()
+            }
+            else{
+                selectedNetFlag.value = true;
+                selectedNet = this
+                addHightlight(this)
+                gridStore.selectGrid(d.id, point1, point2)
+            }
+
+        });
+
+    // 保存网格层以便后续移除
+    map.value.gridLayer = svg;
+    // 更新网格位置 on map zoom
+    map.value.on("zoomend", updateGrid);
+    map.value.on("zoomend", updateGrid);
+    //map.value.on("moveend", updateGrid);
+    function addHightlight(grid) {
+        d3.select(grid).raise();
+        d3.select(grid)
+            .attr("stroke", "red")
+            .attr("stroke-width", 2)
+    }
+    function removeHightlight(grid) {
+        d3.select(grid)
+            .attr("stroke", "#737373")
+            .attr("stroke-width", 2)
+    }
+
+    function updateGrid() {
+        console.log("updateGrid");
+        const topLeft = map.value.latLngToLayerPoint([bounds.north, bounds.west]);
+        const bottomRight = map.value.latLngToLayerPoint([bounds.south, bounds.east]);
+        const svgWidth = bottomRight.x - topLeft.x;
+        const svgHeight = bottomRight.y - topLeft.y;
+
+        svg
+            .attr('width', svgWidth)
+            .attr('height', svgHeight)
+            .style('left', topLeft.x + 'px')
+            .style('top', topLeft.y + 'px');
+
+        rects
+            .attr("x", cell => map.value.latLngToLayerPoint([cell.south, cell.west]).x - topLeft.x)
+            .attr("y", cell => map.value.latLngToLayerPoint([cell.north, cell.east]).y - topLeft.y)
+            .attr("width", cell => {
+                const bottomLeft = map.value.latLngToLayerPoint([cell.south, cell.west]);
+                const topRight = map.value.latLngToLayerPoint([cell.north, cell.east]);
+                return topRight.x - bottomLeft.x;
+            })
+            .attr("height", cell => {
+                const bottomLeft = map.value.latLngToLayerPoint([cell.south, cell.west]);
+                const topRight = map.value.latLngToLayerPoint([cell.north, cell.east]);
+                return bottomLeft.y - topRight.y;
+            });
+    }
+    map.value.on("resize", () => {
+        const topLeft = map.value.latLngToLayerPoint([bounds.north, bounds.west]);
+        const bottomRight = map.value.latLngToLayerPoint([bounds.south, bounds.east]);
+        const svgWidth = bottomRight.x - topLeft.x;
+        const svgHeight = bottomRight.y - topLeft.y;
+
+        svg
+            .attr('width', svgWidth)
+            .attr('height', svgHeight)
+            .style('left', topLeft.x + 'px')
+            .style('top', topLeft.y + 'px');
+    });
+}
 
 const updateDotmapLayer = (data) => {
     // 删除旧的svg
@@ -694,6 +886,11 @@ watch(pathID,()=>{
             .raise()       
             .attr("stroke", "red")
             .attr("stroke-width", 2)
+    d3.select(`#netgrid-${pathID.value}`)
+            .raise()       
+            .attr("stroke", "red")
+            .attr("stroke-width", 2)
+    
 })
 
 watch(city, (newCity) => {
@@ -766,7 +963,7 @@ watch(dataSource,(newdataSource)=>{
     else{
         dataSourceFlag = true
         // 更改poiData为银行数据
-        d3.csv('/jpBank.csv').then((data) => {
+        d3.csv('/allBank.csv').then((data) => {
             poiData = data.map((d) => {
                 return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
             })
@@ -806,8 +1003,8 @@ onMounted(()=>{
     ).setView(getCity(cities,city.value), 11)
     
     // getPoiMax();
-    
-    d3.csv('/jpBank.csv').then((data) => {
+
+    d3.csv('/allBank.csv').then((data) => {
         //console.log(data)
     poiData = data.map((d) => {
         return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
@@ -871,7 +1068,10 @@ onMounted(()=>{
                 </el-select>
             </div>
             <div class="controlbar-content">
-                <el-button :disabled="!selected" @click="addComparison">+比较视图</el-button>
+                <el-button :disabled="!selected" @click="addComparison">+比较</el-button>
+            </div>
+            <div class="controlbar-content">
+                <el-button  @click="clearGrid">-清除</el-button>
             </div>
         </div>
         <div id="mapContainer" style="height: 100%;width:100%;">
@@ -980,7 +1180,7 @@ svg.overlay {
 }
 #circle-tooltip{
     display: none;
-    position: absolute;
+    position: fixed;
     background-color: #f9f9f9;
     border: 1px solid #000;
     border-radius: 5px;

@@ -30,7 +30,7 @@ const fetchData = async(bound) => {
     })
     const result = await res.json()
     poiData.value = result
-    //console.log("poi data:",poiData.value)
+    console.log("poi data:",poiData.value)
 }
 
 const options = [
