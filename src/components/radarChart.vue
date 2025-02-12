@@ -174,7 +174,7 @@ const createRadar = () => {
             .on('click',function(){
                 //根据ID查找data
                 lastItem.value = data.value.find(item => item.gridID == d.gridID)
-                lastItemValue.splice(0,lastItemValue.length,...lastItem.value.value.map(d => d.toFixed(2)))
+                lastItemValue.splice(0,lastItemValue.length,...lastItem.value.value.map(d => d.toFixed(1)))
                 //确定选择的path（对应网格）
                 pathStore.selectPath(d.gridID)
                 console.log("pathID:",pathStore.pathID)
@@ -380,7 +380,7 @@ watch(data.value,()=>{
         return
     }
     lastItem.value = data.value[data.value.length-1]
-    lastItemValue.splice(0,lastItemValue.length,...lastItem.value.value.map(d => d.toFixed(2)))
+    lastItemValue.splice(0,lastItemValue.length,...lastItem.value.value.map(d => d.toFixed(1)))
     // 保留一位小数
     // lastItemValue = lastItemValue.map(d => d.toFixed(2))
     console.log(lastItemValue)
@@ -399,9 +399,8 @@ watch(data.value,()=>{
 <template>
     <p style="font-size: 16px;font-weight:bold;margin:0.2rem">网格商业化水平详情</p>
     <div id="container">
-        <!-- <el-button type="primary" @click="addData">ADD</el-button> -->
         <div style="display: flex;justify-content:flex-end;width:95%">
-            <button @click="clearChart" class="clearButton">清除</button>
+             <el-button color="#ecf5ff" type="primary" @click="clearChart">清除</el-button>
         </div>
 
         <div ref="radar" class="radarChart"></div>

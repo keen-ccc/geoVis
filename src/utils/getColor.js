@@ -13,8 +13,8 @@ export const expressDotColors = {
     '圆通':'#E274B8',
     '中通':'#fb804f',
     '申通':'#87ceeb',
-    '韵达':'#2b587d',
-    '邮政':'#29b530',
+    '韵达':'#29b530',
+    '邮政':'#2b587d',
     '京东':'#ee9c82',
 }
 export const getDotColors = (type) => {

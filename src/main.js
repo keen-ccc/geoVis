@@ -6,7 +6,6 @@ import { createPinia } from 'pinia'
 // import { createPinia } from 'pinia'
 import * as Icons from '@element-plus/icons-vue'
 
-
 const app = createApp(App);
 for (let i in Icons) {
     app.component(i, Icons[i])

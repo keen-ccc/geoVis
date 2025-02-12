@@ -33,6 +33,23 @@ const fetchData = async(bound) => {
     console.log("poi data:",poiData.value)
 }
 
+const exportTable = () => {
+    const BOM = "\uFEFF";
+    const headers = "名称,地址\n";
+    const rows = poiData.value.map(d => `${d.name},${d.address}`).join("\n");
+    console.log(rows);
+    const csvContent = BOM + headers + rows;
+    console.log(csvContent);
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement("a");
+    const url = URL.createObjectURL(blob);
+    link.setAttribute("href", url);
+    link.setAttribute("download", "poi_data.csv");
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+
 const options = [
     {
         label: '银行',
@@ -70,10 +87,11 @@ watch(bound,(newBound)=>{
         <p style="font-size: 16px;font-weight:bold;margin:0.5rem">POI 目录</p>
         <div id="poiDetail">
             <div id="poiFilter">
-                <p style="font-weight: bold;margin-right:1rem">按行业查询：</p>
-                <el-select v-model="selection" style="width: 80%;" @change="checkoutSelection">
+                <p style="font-weight: bold;">按行业查询：</p>
+                <el-select v-model="selection" style="width: 65%;" @change="checkoutSelection">
                     <el-option v-for="option in options" :key="option.label" :value="option.value" :label="option.label" ></el-option>
                 </el-select>
+                <el-button color="#ecf5ff" type="primary" @click="exportTable" style="margin-left: 1rem">导出</el-button>
             </div>
             <div id="poiTable">
                 <ul>
@@ -102,7 +120,7 @@ watch(bound,(newBound)=>{
     width:100%;
     display: flex;
     align-items: center;
-    margin-left: 1rem;
+    margin-left: 0.5rem;
 
 }
 #poiTable {

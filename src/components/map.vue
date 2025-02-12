@@ -538,13 +538,13 @@ const initDotmapLayer = (data) => {
         }))
         .attr("fill", (d => {
             if(d.properties && d.properties.type && dataSourceFlag == true){
-                if (d.properties.type.includes('中国工商银行') ) {
+                if (d.properties.type.includes('工商') ) {
                     return getDotColors('中国工商银行')
-                } else if (d.properties.type.includes('中国建设银行')) {
+                } else if (d.properties.type.includes('建设')) {
                     return getDotColors('中国建设银行')
-                } else if (d.properties.type.includes('中国农业银行')) {
+                } else if (d.properties.type.includes('农业')) {
                     return getDotColors('中国农业银行')
-                } else if (d.properties.type.includes('交通银行')) {
+                } else if (d.properties.type.includes('交通')) {
                     return getDotColors('交通银行')
                 } else if (d.properties.type.includes('中国银行')) {
                     return getDotColors('中国银行')
@@ -605,8 +605,9 @@ const initDotmapLayer = (data) => {
             d3.select('#circle-tooltip').style('display','none');
         })
         .on(('click'),function(e,d){
+            console.log(d.properties)
             // 只能选择邮政网点
-            if(d.properties.type.includes('邮政')){
+            if(d.properties.type.includes('邮政')||d.properties.name.includes('邮政')){
                 console.log(d.properties.name)
                 //记录选中的网点的全局状态
                 netSelectorStore.setSelectedNet(d.properties)
@@ -700,8 +701,8 @@ const generateGrid = (lat,lon) => {
     const latStep = gridSize / 111320
     const lonStep = gridSize / (40075000 * Math.cos(numericLat * Math.PI / 180) / 360)
 
-    const numLatSteps = Math.ceil(range/gridSize)
-    const numLonSteps = Math.ceil(range/gridSize)
+    const numLatSteps = Math.round(range/gridSize)
+    const numLonSteps = Math.round(range/gridSize)
     // console.log("Latitude Step:", gridSize / 111320);
     // console.log("Longitude Step:", gridSize / (40075000 * Math.cos(lat * Math.PI / 180) / 360));
     //生成网格数据
@@ -746,6 +747,7 @@ const generateGrid = (lat,lon) => {
         .enter()
         .append('rect')
         .attr('id',d=>{
+            console.log(d)
                 return `netgrid-${d.id}`
         })
         .attr('x', cell => map.value.latLngToLayerPoint([cell.south, cell.west]).x-topLeft.x)
@@ -1153,8 +1155,10 @@ svg.overlay {
     align-items: center;
 }
 .controlbar-content{
-    width:35% ;
+    /* width:35% ; */
     display: flex;
+    flex-direction: row;
+    margin:0 auto;
     align-items: center;
     justify-content: center;
 }
