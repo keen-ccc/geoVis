@@ -73,8 +73,36 @@ const options = [
         value:'企业'
     },
     {
-        label:'商场',
-        value:'商场'
+        label:'购物',
+        value:'购物'
+    },
+    {
+        label:'医疗',
+        value:'医疗'
+    },
+    {
+        label:'科教文化',
+        value:'科教文化'
+    },
+    {
+        label:'住宿',
+        value:'住宿'
+    },
+    {
+        label:'政府机构',
+        value:'政府机构'
+    },
+    {
+        label:'娱乐',
+        value:'娱乐'
+    },
+    {
+        label:'汽车销售',
+        value:'汽车销售'
+    },
+    {
+        label:'汽车服务',
+        value:'汽车服务'
     }
 ]
 
