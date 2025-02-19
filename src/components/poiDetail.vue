@@ -2,6 +2,7 @@
 import { ref,onMounted,watch} from 'vue'
 import svgHolder from './svgHolder.vue'
 import {useGridSelectorStore} from '@/store/gridSelector'
+import {usePoiDetailStore} from '@/store/poiDetail'
 import { storeToRefs } from 'pinia'
 
 const poiData = ref([])
@@ -9,6 +10,8 @@ const poiFilter = ref(null)
 const selection = ref('银行')
 const gridStore = useGridSelectorStore()
 const { bound } = storeToRefs(gridStore);
+
+const poiStore = usePoiDetailStore()
 
 poiData.value = []
 const fetchData = async(bound) => {
@@ -20,7 +23,7 @@ const fetchData = async(bound) => {
         end_lat:bound.latEnd,
         type:selection.value
     }
-    console.log(params)
+    //console.log(params)
     const res = await fetch('http://localhost:5000/api/getPOIDetail',{
         method:'POST',
         headers:{
@@ -30,7 +33,9 @@ const fetchData = async(bound) => {
     })
     const result = await res.json()
     poiData.value = result
-    console.log("poi data:",poiData.value)
+    //console.log("poi data:",poiData.value)
+    poiStore.setPoiData(result)
+    //console.log("poi store data:",poiStore.poiData)
 }
 
 const exportTable = () => {
@@ -74,7 +79,7 @@ const options = [
 ]
 
 const checkoutSelection = (value) => {
-    console.log(value)
+    //console.log(value)
     fetchData(bound.value)
 }
 watch(bound,(newBound)=>{

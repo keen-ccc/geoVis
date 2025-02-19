@@ -18,6 +18,7 @@ import { color } from 'echarts';
 import {useGridSelectorStore} from '@/store/gridSelector'
 import {pathGridStore} from '@/store/pathSelector'
 import {useNetSelectorStore} from '@/store/netSelector'
+import { usePoiDetailStore } from '@/store/poiDetail.js';
 import { storeToRefs } from 'pinia'
 import html2canvas from "html2canvas";
 import {Delete} from '@element-plus/icons-vue'
@@ -62,9 +63,11 @@ const expressValue = ref(['菜鸟','顺丰','京东','申通','圆通','中通',
 const dataSource = ref('bank')
 const pathStore = pathGridStore()
 const {pathID} = storeToRefs(pathStore)
+const poiStore = usePoiDetailStore()
 let dataSourceFlag = true // true:银行  false:物流
 let poiData = []
 let gridData = []
+let isPoiData = false
 const headings = [
     {
         key:1,
@@ -309,6 +312,7 @@ const createMap = () => {
             console.log('remove 兴趣点')
             //删除生成的svg
             d3.select(map.value.getPanes().overlayPane).selectAll('#dotmapLayer').remove()
+            d3.select(map.value.getPanes().overlayPane).selectAll('#poidotmapLayer').remove()
         }
         if(e.name == '网格图'){
             console.log('remove 网格')
@@ -515,6 +519,14 @@ const initGridLayer = (data1) => {
 
 const initDotmapLayer = (data) => {
     //dotmapLayer.value = L.layerGroup()
+    //console.log("isPoiData",isPoiData)
+    // let svg;
+    // if(isPoiData == true){
+    //     svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","poidotmapLayer")
+    // }
+    // else{
+    //     svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","dotmapLayer")
+    // }
     const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","dotmapLayer")
     //svg.lower();
     const g = svg.append("g").attr("class", "leaflet-zoom-hide")
@@ -849,7 +861,6 @@ const generateGrid = (lat,lon) => {
             .style('top', topLeft.y + 'px');
     });
 }
-
 const updateDotmapLayer = (data) => {
     // 删除旧的svg
     d3.select(map.value.getPanes().overlayPane).selectAll('#dotmapLayer').remove()
@@ -865,7 +876,100 @@ const updateDotmapLayer = (data) => {
     initDotmapLayer(filterData)
     //console.log("dotmapLayer is:",dotmapLayer.value)
 }
+const createPoiDataDotMap = (data) => {
+    //console.log("createPoiDataDotMap")
+    //initDotmapLayer(data)
+    d3.select(map.value.getPanes().overlayPane).selectAll('#poidotmapLayer').remove()
+    // initDotmapLayer(data)
+    const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","poidotmapLayer")
+    const g = svg.append("g").attr("class", "leaflet-zoom-hide")
+    const transform = d3.geoTransform({point: projectPoint})
+    const path = d3.geoPath().projection(transform)
 
+    const geoData = data.map(d => ({type: "Feature", geometry: {type: "Point", coordinates: [d.lon, d.lat]}, properties: d}))
+    // console.log(geoData)
+    const feature = g.selectAll("circle")
+        .data(geoData)
+        .enter().append("circle")
+        .attr('id','dot')
+        .attr("r",(d =>{
+            if(map.value.getZoom() < 14){
+                return 2
+            }
+            else{
+                return 5
+            }
+        }))
+        .attr("fill",'#FF0000')
+        .on('mouseover',function(e,d){
+            d3.select(this).attr('stroke','black').attr('stroke-width',2)
+            console.log(d.properties.name)
+            d3.select('#tooltip-name').text(d.properties.name)
+            d3.select('#tooltip-address').text(d.properties.address)
+            d3.select('#circle-tooltip').style('display', 'block');
+        })
+        .on('mousemove',function(e,d){
+            // 获取circle位置
+            const mouseX = e.clientX + 10
+            const mouseY = e.clientY + 10
+            d3.select('#circle-tooltip').style('left',`${mouseX}px`).style('top', `${mouseY}px`);
+        })
+        .on('mouseout',function(e,d){
+            d3.select(this).attr('stroke','none')
+            d3.select('#circle-tooltip').style('display','none');
+        })
+        // .on(('click'),function(e,d){
+        //     console.log(d.properties)
+        //     // 只能选择邮政网点
+        //     if(d.properties.type.includes('邮政')||d.properties.name.includes('邮政')){
+        //         console.log(d.properties.name)
+        //         //记录选中的网点的全局状态
+        //         netSelectorStore.setSelectedNet(d.properties)
+        //         generateGrid(d.properties.lat,d.properties.lon)
+        //     }
+        // })
+
+    map.value.on("zoomend", reset)
+    reset()
+
+    function reset() {
+        const bounds = path.bounds({type: "FeatureCollection", features: geoData})
+        const topLeft = bounds[0]
+        const bottomRight = bounds[1]
+        const margin = 10
+        const width = bottomRight[0] - topLeft[0] + margin * 2
+        const height = bottomRight[1] - topLeft[1] + margin * 2
+        // 检查是否有无效值
+        // if (!isFinite(width) || !isFinite(height)) {
+        //     console.error("Invalid bounds:", bounds)
+        //     return
+        // }
+        svg.attr("width", width)
+            .attr("height", height)
+            .style("left", (topLeft[0] - margin) + "px")
+            .style("top",(topLeft[1] - margin) + "px")
+
+ 
+        g.attr("transform", "translate(" + (-topLeft[0] + margin) + "," + (-topLeft[1] + margin) + ")")
+
+        feature.attr("transform", d => {
+            //console.log(d)
+            if (d.geometry.coordinates[0] !== undefined && d.geometry.coordinates[1] !== undefined) {
+                const point = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[1], d.geometry.coordinates[0]));
+                return `translate(${point.x},${point.y})`;
+            } else {
+                console.error("Invalid LatLng object:", d);
+                return "translate(0,0)";
+            }
+        })
+    }
+
+    function projectPoint(x, y) {
+        const point = map.value.latLngToLayerPoint(new L.LatLng(y, x))
+        this.stream.point(point.x, point.y)
+    }
+
+}
 const createAggregationLayer = () => {
     //console.log("createTestLayer")
     var markers = L.markerClusterGroup({chunkedLoading:true})
@@ -987,6 +1091,24 @@ watch(dataSource,(newdataSource)=>{
         })
     }
 })
+watch(()=>poiStore.poiData,(newPoiData)=>{
+    console.log(newPoiData)
+    if(newPoiData){
+        // poiData = newPoiData
+        // if(dotmapLayer.value && map.value.hasLayer(dotmapLayer.value)){
+        //     dotmapLayer.value.clearLayers()
+        //     updateDotmapLayer(poiData)
+        // }
+        // if(aggregationLayer.value && map.value.hasLayer(aggregationLayer.value)){
+        //     aggregationLayer.value.clearLayers()
+        //     createAggregationLayer()
+        // }
+        //console.log("poi data changed!")
+        createPoiDataDotMap(newPoiData)
+        isPoiData = true
+    }
+})
+
 const getPoiMax = async () => {
     const response = await fetch('http://localhost:5000/api/get_poiNum', {
         method: 'GET',
