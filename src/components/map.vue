@@ -614,6 +614,9 @@ const initDotmapLayer = (data) => {
                 console.log(d.properties.name)
                 //记录选中的网点的全局状态
                 netSelectorStore.setSelectedNet(d.properties)
+                //把网格选择清空
+                const gridStore = useGridSelectorStore();
+                gridStore.clearGrid();
                 generateGrid(d.properties.lat,d.properties.lon)
             }
         })
@@ -699,6 +702,7 @@ const generateGrid = (lat,lon) => {
         east: numericLon + (extendedRange / 2) / (40075000 * Math.cos(numericLat * Math.PI / 180) / 360),
         west: numericLon - (extendedRange / 2) / (40075000 * Math.cos(numericLat * Math.PI / 180) / 360)
     };
+    console.log("bounds")
     console.log(bounds)
 
     const latStep = gridSize / 111320
@@ -774,23 +778,31 @@ const generateGrid = (lat,lon) => {
             var point1 = [d.west,d.south]
             var point2 = [d.east,d.north]
             const gridStore = useGridSelectorStore();
-            if(selectedNetFlag.value){
-                gridStore.selectGrid(d.id, point1, point2)
-                addHightlight(this);
-                removeHightlight(selectedNet);
-                selectedNet = this;
-            }
-            else if(selectedNet == this){
-                selectedNetFlag.value = false;
+
+            if (gridStore.findGrid(d.id)) {
                 removeHightlight(this);
-                gridStore.cancelGrid()
+            } else {
+                addHightlight(this);
             }
-            else{
-                selectedNetFlag.value = true;
-                selectedNet = this
-                addHightlight(this)
-                gridStore.selectGrid(d.id, point1, point2)
-            }
+            gridStore.selectGrid(d.id, point1, point2);
+
+            // if(selectedNetFlag.value){
+            //     gridStore.selectGrid(d.id, point1, point2)
+            //     addHightlight(this);
+            //     removeHightlight(selectedNet);
+            //     selectedNet = this;
+            // }
+            // else if(selectedNet == this){
+            //     selectedNetFlag.value = false;
+            //     removeHightlight(this);
+            //     gridStore.cancelGrid()
+            // }
+            // else{
+            //     selectedNetFlag.value = true;
+            //     selectedNet = this
+            //     addHightlight(this)
+            //     gridStore.selectGrid(d.id, point1, point2)
+            // }
 
         });
 
@@ -1137,9 +1149,10 @@ onMounted(()=>{
                     市场经营主体分析
                 </template>
                 <l-sidepanel-tab link="2">
-                    <detailTable></detailTable>
+                    <!-- <detailTable></detailTable> -->
                 </l-sidepanel-tab>
             </l-sidepanel>
+         
         </div>
     </div>
 
