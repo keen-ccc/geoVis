@@ -34,15 +34,14 @@ import {useGridSelectorStore} from '@/store/gridSelector'
 import * as d3 from 'd3';
 
 const gridStore = useGridSelectorStore()
-const { num } = storeToRefs(gridStore);
+const { bound } = storeToRefs(gridStore);
 
 const EntityDiagram = ref(null);
 let chartInstance = null;
 const tableData = ref([])
 const filterTableData = ref([])
 
-// const treeData = ref(null)
-const treeData = ref([])
+const treeData = ref(null)
 
 var maxValue = ref(0)
 // 对数颜色比例尺
@@ -79,10 +78,8 @@ const fetchData = async(bound) => {
     },
     body: JSON.stringify(params)
   })
-  let data = await res.json()
-  filterTableData.value.push(...data);
-  // tableData.value = filterTableData.value
-  tableData.value.push(...filterTableData.value);
+  filterTableData.value = await res.json()
+  tableData.value = filterTableData.value
   console.log("表格数据：",filterTableData.value)
 
 }
@@ -237,13 +234,9 @@ onMounted( async ()=>{
     //drawPieChart();
     //drawTreeChart();
 })
-watch(num,(newNum)=>{
+watch(bound,(newBound)=>{
   console.log("detailTable bound change")
-
-  const grids = gridStore.grids;
-  console.log(grids);
-  for (let bound of grids.values())
-    fetchData(bound);
+  fetchData(newBound)
 })
 watch(treeData,(newData)=>{
   maxValue = d3.max(treeData.value.children,d => d3.max(d.children,c=>c.value));
