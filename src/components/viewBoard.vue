@@ -31,7 +31,7 @@ onUnmounted(() => {
                 <radarChart></radarChart>
             </div>
             <div class="info-table">
-                <!-- <detailTable></detailTable> -->
+                <detailTable></detailTable>
                 <poiDetail></poiDetail>
             </div>
         </div>
