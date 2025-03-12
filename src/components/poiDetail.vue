@@ -12,6 +12,7 @@ const gridStore = useGridSelectorStore()
 const { bound } = storeToRefs(gridStore);
 
 const poiStore = usePoiDetailStore()
+const { num } = storeToRefs(gridStore);
 
 poiData.value = []
 const fetchData = async(bound) => {
@@ -32,9 +33,10 @@ const fetchData = async(bound) => {
         body:JSON.stringify(params)
     })
     const result = await res.json()
-    poiData.value = result
+    poiData.value.push(...result)
     //console.log("poi data:",poiData.value)
-    poiStore.setPoiData(result)
+    poiStore.setPoiData(poiData)
+    // poiStore.setPoiData(result)
     //console.log("poi store data:",poiStore.poiData)
 }
 
@@ -107,11 +109,23 @@ const options = [
 ]
 
 const checkoutSelection = (value) => {
+    const grids = gridStore.grids;
+    console.log(grids);
+    for (let bound of grids.values())
+        fetchData(bound);
     //console.log(value)
-    fetchData(bound.value)
+    // fetchData(bound.value)
 }
-watch(bound,(newBound)=>{
-    fetchData(newBound)
+// watch(bound,(newBound)=>{
+//     fetchData(newBound)
+// })
+watch(num,(newNum)=>{
+  console.log("detailTable bound change")
+
+  const grids = gridStore.grids;
+  console.log(grids);
+  for (let bound of grids.values())
+    fetchData(bound);
 })
 </script>
 
