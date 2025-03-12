@@ -30,6 +30,7 @@ L.Tooltip.include({
 		//console.log('Tooltip',this._map);
 		const pos = this._map._latLngToNewLayerPoint(this._latlng, e.zoom, e.center);
 		this._setPosition(pos);
+        controlGridLayer()
 	}
 });
 L.Popup.include({
@@ -38,6 +39,7 @@ L.Popup.include({
 		const pos = this._map._latLngToNewLayerPoint(this._latlng, e.zoom, e.center),
 			anchor = this._getAnchor();
 		L.DomUtil.setPosition(this._container, pos.add(anchor));
+        controlGridLayer()
 	},
 });
 L.Marker.include({
@@ -49,6 +51,7 @@ L.Marker.include({
 		const pos = this._map._latLngToNewLayerPoint(this._latlng, opt.zoom, opt.center).round();
 
 		this._setPos(pos);
+        controlGridLayer()
 	},
 });
 // 初始化 Pinia store
