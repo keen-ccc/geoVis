@@ -518,23 +518,30 @@ const initGridLayer = (data1) => {
                 var point1 = d.geometry.coordinates[0][0];
                 var point2 = d.geometry.coordinates[0][2];
                 // Math.min(point1[1],point2[1])==latStart && Math.min(point1[0],point2[0])==lonStart
-                if(!selected.value){
-                    addHightlight(this)
-                    selected.value = true;
-                    gridStore.selectGrid(d.properties.id, point1, point2)
-                    console.log("properties",gridStore.bound)
-                    selectedGrid = this
-                    //console.log(gridStore.bound)
-                } else if(selectedGrid == this) {
-                    selected.value = false;
-                    removeHightlight(this)
-                    gridStore.cancelGrid()
+
+                if (gridStore.findGrid(d.id)) {
+                    removeHightlight(this);
                 } else {
-                    gridStore.selectGrid(d.properties.id, point1, point2);
-                    addHightlight(this)
-                    removeHightlight(selectedGrid)
-                    selectedGrid = this
+                    addHightlight(this);
                 }
+                gridStore.selectGrid(d.id, point1, point2);
+                // if(!selected.value){
+                //     addHightlight(this)
+                //     selected.value = true;
+                //     gridStore.selectGrid(d.properties.id, point1, point2)
+                //     console.log("properties",gridStore.bound)
+                //     selectedGrid = this
+                //     //console.log(gridStore.bound)
+                // } else if(selectedGrid == this) {
+                //     selected.value = false;
+                //     removeHightlight(this)
+                //     gridStore.cancelGrid()
+                // } else {
+                //     gridStore.selectGrid(d.properties.id, point1, point2);
+                //     addHightlight(this)
+                //     removeHightlight(selectedGrid)
+                //     selectedGrid = this
+                // }
                 
             });
             
@@ -825,23 +832,29 @@ const generateGrid = (lat,lon) => {
             var point1 = [d.west,d.south]
             var point2 = [d.east,d.north]
             const gridStore = useGridSelectorStore();
-            if(selectedNetFlag.value){
-                gridStore.selectGrid(d.id, point1, point2)
-                addHightlight(this);
-                removeHightlight(selectedNet);
-                selectedNet = this;
-            }
-            else if(selectedNet == this){
-                selectedNetFlag.value = false;
+            if (gridStore.findGrid(d.id)) {
                 removeHightlight(this);
-                gridStore.cancelGrid()
+            } else {
+                addHightlight(this);
             }
-            else{
-                selectedNetFlag.value = true;
-                selectedNet = this
-                addHightlight(this)
-                gridStore.selectGrid(d.id, point1, point2)
-            }
+            gridStore.selectGrid(d.id, point1, point2);
+            // if(selectedNetFlag.value){
+            //     gridStore.selectGrid(d.id, point1, point2)
+            //     addHightlight(this);
+            //     removeHightlight(selectedNet);
+            //     selectedNet = this;
+            // }
+            // else if(selectedNet == this){
+            //     selectedNetFlag.value = false;
+            //     removeHightlight(this);
+            //     gridStore.cancelGrid()
+            // }
+            // else{
+            //     selectedNetFlag.value = true;
+            //     selectedNet = this
+            //     addHightlight(this)
+            //     gridStore.selectGrid(d.id, point1, point2)
+            // }
 
         });
 
@@ -960,16 +973,19 @@ const createPoiDataDotMap = (data) => {
             d3.select(this).attr('stroke','none')
             d3.select('#circle-tooltip').style('display','none');
         })
-        // .on(('click'),function(e,d){
-        //     console.log(d.properties)
-        //     // 只能选择邮政网点
-        //     if(d.properties.type.includes('邮政')||d.properties.name.includes('邮政')){
-        //         console.log(d.properties.name)
-        //         //记录选中的网点的全局状态
-        //         netSelectorStore.setSelectedNet(d.properties)
-        //         generateGrid(d.properties.lat,d.properties.lon)
-        //     }
-        // })
+        .on(('click'),function(e,d){
+            console.log(d.properties)
+            // 只能选择邮政网点
+            if(d.properties.type.includes('邮政')||d.properties.name.includes('邮政')){
+                console.log(d.properties.name)
+                //记录选中的网点的全局状态
+                netSelectorStore.setSelectedNet(d.properties)
+                //把网格选择清空
+                const gridStore = useGridSelectorStore();
+                gridStore.clearGrid();
+                generateGrid(d.properties.lat,d.properties.lon)
+            }
+        })
 
     map.value.on("zoomend", reset)
     reset()
