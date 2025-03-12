@@ -60,6 +60,7 @@ const fetchData = async(bound) => {
       end_lon:bound.lonEnd,
       end_lat:bound.latEnd,
   }
+  console.log(params)
   const tree_response = await fetch('http://localhost:5000/api/getIndustry', {
     method: 'POST',
     headers: {

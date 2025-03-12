@@ -12,6 +12,7 @@ import 'leaflet.markercluster/dist/leaflet.markercluster.js'
 import * as d3 from 'd3'
 //import getCity from '../utils/index.js'
 import { cities ,getCity} from '../utils/getCity.js'
+//import '../utils/TileLayer.Grayscale.js'
 import {dotColors,expressDotColors,getDotColors,getExpressDotColors} from '../utils/getColor.js';
 import detailTable from './detailTable.vue';
 import { color } from 'echarts';
@@ -85,11 +86,12 @@ const props1 = {
   label:'label',
   children:'children'
 }
-
+//https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/WMTS/tile/1.0.0/Canvas_World_Light_Gray_Base/default/default028mm/{z}/{y}/{x}/
+//https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}
 // 图层
 let baseMapLayer = L.tileLayer('https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',{
-    maxZoom: 20,
-    minZoom: 6,
+    maxZoom: 16,
+    minZoom: 10,
 })
 let heatmapLayer = ref(null)
 let dotmapLayer = ref(null)
@@ -114,6 +116,43 @@ var heat_bool = 0;
 var grid_bool = 0;
 var grid_size = ref(500)
 var poiMax = 850;
+
+//火星坐标 -> WGS84坐标
+function gcj02ToWgs84(lng, lat) {
+    var pi = 3.1415926535897932384626;
+    var a = 6378245.0;
+    var ee = 0.00669342162296594323;
+
+    var dlat = transformLat(lng - 105.0, lat - 35.0);
+    var dlng = transformLng(lng - 105.0, lat - 35.0);
+    var radlat = lat / 180.0 * pi;
+    var magic = Math.sin(radlat);
+    magic = 1 - ee * magic * magic;
+    var sqrtmagic = Math.sqrt(magic);
+    dlat = (dlat * 180.0) / ((a * (1 - ee)) / (magic * sqrtmagic) * pi);
+    dlng = (dlng * 180.0) / (a / sqrtmagic * Math.cos(radlat) * pi);
+    var mglat = lat + dlat;
+    var mglng = lng + dlng;
+    return [lng * 2 - mglng, lat * 2 - mglat];
+}
+
+function transformLat(lng, lat) {
+    var pi = 3.1415926535897932384626;
+    var ret = -100.0 + 2.0 * lng + 3.0 * lat + 0.2 * lat * lat + 0.1 * lng * lat + 0.2 * Math.sqrt(Math.abs(lng));
+    ret += (20.0 * Math.sin(6.0 * lng * pi) + 20.0 * Math.sin(2.0 * lng * pi)) * 2.0 / 3.0;
+    ret += (20.0 * Math.sin(lat * pi) + 40.0 * Math.sin(lat / 3.0 * pi)) * 2.0 / 3.0;
+    ret += (160.0 * Math.sin(lat / 12.0 * pi) + 320 * Math.sin(lat * pi / 30.0)) * 2.0 / 3.0;
+    return ret;
+}
+
+function transformLng(lng, lat) {
+    var pi = 3.1415926535897932384626;
+    var ret = 300.0 + lng + 2.0 * lat + 0.1 * lng * lng + 0.1 * lng * lat + 0.1 * Math.sqrt(Math.abs(lng));
+    ret += (20.0 * Math.sin(6.0 * lng * pi) + 20.0 * Math.sin(2.0 * lng * pi)) * 2.0 / 3.0;
+    ret += (20.0 * Math.sin(lng * pi) + 40.0 * Math.sin(lng / 3.0 * pi)) * 2.0 / 3.0;
+    ret += (150.0 * Math.sin(lng / 12.0 * pi) + 300.0 * Math.sin(lng / 30.0 * pi)) * 2.0 / 3.0;
+    return ret;
+}
 
 // const getGridData = async () => {
 //     let dataGeo = Cesium.GeoJsonDataSource.load("@/assets/grid_simple.geojson");
@@ -1121,10 +1160,13 @@ const getPoiMax = async () => {
     poiMax = data.poiMax
 }
 onMounted(()=>{
+    const coords = getCity(cities,city.value)
+    const [wgsLat, wgsLng] = [coords[0], coords[1]]
+    //const [wgsLat, wgsLng] = gcj02ToWgs84(coords[0], coords[1]); // 调整参数顺序
     map.value = L.map('mapContainer', {attributionControl: false,
     layers:[baseMapLayer]
 }
-    ).setView(getCity(cities,city.value), 11)
+    ).setView([wgsLat,wgsLng], 11)
     
     // getPoiMax();
 
