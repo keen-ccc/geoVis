@@ -1,11 +1,12 @@
 // stores/counter.js
 import { defineStore } from 'pinia'
+import { ref } from 'vue';
 
 export const useGridSelectorStore = defineStore('gridSelector', {
   state: () => {
     return { 
       num:0,
-      grids: new Map()
+      grids: new Map(),
     }
   },
   // 也可以这样定义

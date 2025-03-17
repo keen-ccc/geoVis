@@ -1,5 +1,5 @@
 <script setup>
-import { ref,onMounted,watch} from 'vue'
+import { ref,onMounted,watch,nextTick} from 'vue'
 import * as d3 from 'd3'
 import * as echarts from 'echarts';
 import {useGridSelectorStore} from '@/store/gridSelector'
@@ -21,7 +21,7 @@ const sumWeight = ref(1.23)
 var pathSelected = false
 const gridStore = useGridSelectorStore()
 const pathStore = pathGridStore()
-const { bound,gridID } = storeToRefs(gridStore);
+const  state  = storeToRefs(gridStore);
 const {pathID} = storeToRefs(pathStore)
 
 var populationScale,housePriceScale,poiDensityScale,poiDiversityScale,scoreScale = null;
@@ -37,25 +37,24 @@ var poiDiversityMin = 0;
 var scoreMin = 0;
 
 const fetchData = async (bound) => {
-    sumWeight.value = populationWeight.value + housePriceWeight.value + poiDensityWeight.value + poiDiversityWeight.value
-    console.log("sum weight:",sumWeight.value)
-    // 判断数据是否已经存在，避免重复添加
-    // 根据 gridID 检查 data 中是否已包含对应数据
-    const exists = data.value.some(item => item.gridID === gridID.value);
-    if(exists){
-        console.log("data已存在！")
-        //根据ID查找data
-        lastItem.value = data.value.find(item => item.gridID == gridID.value)
-        lastItemValue.splice(0,lastItemValue.length,...lastItem.value.value.map(d => d.toFixed(2)))
-        console.log(lastItemValue)
-        // 查找符合ID的数据
-        const selectedData = data.value.find(d => d.gridID == gridID.value)
-        console.log("selectData:",selectedData)
-        highlightLine(selectedData)
-        return
-    }
+
+    //const gridStore = useGridSelectorStore(); // 获取 Pinia store 实例
+    sumWeight.value = populationWeight.value + housePriceWeight.value + poiDensityWeight.value + poiDiversityWeight.value;
+    console.log("sum weight:", sumWeight.value);
+
+    // 获取所有 grids 的 ID
+    const gridIDs = Array.from(gridStore.grids.keys());
+    console.log("gridIDs:", gridIDs);
+
+    // 判断是否有选择的 gridID
+    const selectedGridID = gridIDs.find(id => gridStore.grids.get(id).latStart === bound.latStart &&
+                                               gridStore.grids.get(id).latEnd === bound.latEnd &&
+                                               gridStore.grids.get(id).lonStart === bound.lonStart &&
+                                               gridStore.grids.get(id).lonEnd === bound.lonEnd);
+
+
     const params = {
-            gridID:gridID.value,
+            gridID: selectedGridID,
             start_lon:bound.lonStart,
             start_lat:bound.latStart,
             end_lon:bound.lonEnd,
@@ -66,20 +65,24 @@ const fetchData = async (bound) => {
             poiDiversityWeight:poiDiversityWeight.value,
             sumWeight:sumWeight.value
     }
-    //console.log(params)
-    const res = await fetch('http://localhost:5000/api/cal_score',{
-        method:'POST',
-        headers:{
-            'Content-Type':'application/json'
-        },
-        body:JSON.stringify(params)
-    })
-        const result = await res.json()
-        data.value.push(result); // 如果不存在，则将新结果添加到 data 中
-
-        console.log("radar data:",data.value)
+    try {
+        const res = await fetch('http://localhost:5000/api/cal_score', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(params)
+        });
+        
+        if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+        
+        const result = await res.json();
+        console.log("单条数据获取:", result);
+        return result; // 直接返回结果
+    } catch (e) {
+        console.error("请求失败:", e);
+        return null;
+    }
 }
-const createRadar = () => {
+const createRadar = (selectedGridIDs = []) => {
     d3.select(radar.value).selectAll('*').remove()
 
     const svgHeight = radar.value.clientHeight
@@ -141,73 +144,94 @@ const createRadar = () => {
     //     .domain([0,1])
 
     data.value.forEach(d => {
-        svg.append("path")
-            .datum(dd => {
-                // 数组每一个指标分别进行归一化
-                return d.value.map((item, i) => {
-                    switch(i){
-                        case 0:
-                            return (item - populationMin) / (populationMax - populationMin);
-                        case 1:
-                            return (item - housePriceMin) / (housePriceMax - housePriceMin);
-                        case 2:
-                            return (item - poiDensityMin) / (poiDensityMax - poiDensityMin);
-                        case 3:
-                            return (item - poiDiversityMin) / (poiDiversityMax - poiDiversityMin);
-                    }
-                });
-            })
-            .attr("d", radarLine)
-            .attr('id', function(e,dd){
-                //判断是网点网格还是普通网格
-                if(d.gridID < 1156){
-                    return `netgrid-${d.gridID}`
-                }else{
-                    return `grid-${d.gridID}`
+        
+    const path = svg.append("path")
+        .datum(dd => {
+            // 数组每一个指标分别进行归一化
+            return d.value.map((item, i) => {
+                switch(i){
+                    case 0:
+                        return (item - populationMin) / (populationMax - populationMin);
+                    case 1:
+                        return (item - housePriceMin) / (housePriceMax - housePriceMin);
+                    case 2:
+                        return (item - poiDensityMin) / (poiDensityMax - poiDensityMin);
+                    case 3:
+                        return (item - poiDiversityMin) / (poiDiversityMax - poiDiversityMin);
                 }
-            })
-            .attr("class", "radarPath")
-            .style("fill", "none")
-            .style("stroke", "#737373")
-            .style("stroke-width", 2)
-            .style('stroke-opacity',0.8)
-            .on('click',function(){
-                //根据ID查找data
-                lastItem.value = data.value.find(item => item.gridID == d.gridID)
-                lastItemValue.splice(0,lastItemValue.length,...lastItem.value.value.map(d => d.toFixed(1)))
-                //确定选择的path（对应网格）
-                pathStore.selectPath(d.gridID)
-                console.log("pathID:",pathStore.pathID)
-                console.log(d3.select(this).style('stroke'))
-                svg.selectAll('path').style('stroke','#737373').style('stroke-width',2)
-                if(d3.select(this).style('stroke') === 'rgb(115, 115, 115)'){
-                    console.log('change color')
-                    d3.select(this).style('stroke','#7EA8CB').style('stroke-width',4)
-                }
-                d3.selectAll('.arcFill').remove()
-                d3.selectAll('.arcText').remove()
-                const arc = d3.arc()
-                    .innerRadius(radius*0.2)
-                    .outerRadius(radius*0.25)
-                    .startAngle(-Math.PI)
-                    .endAngle(scoreScale(d.score))
-                svg.append('path')
-                    .attr('class','arcFill')
-                    .attr('d',arc)
-                    .attr('fill','#1d7bd1')
-                //小圆区域添加文本
-                svg.append('text')
-                    .attr('class','arcText')
-                    .text(d.score.toFixed(2))
-                    .attr('x',0)
-                    .attr('y',-radius*0.1)
-                    .attr('text-anchor','middle')
-                    .attr('dy','0.5em')
-                    .attr('font-size',12)
-                    .attr('fill','#2B587D')
-                    .attr('font-weight','bold')
-                })
-    });
+            });
+        })
+        .attr("d", radarLine)
+        .attr('id', function(e, dd) {
+            // 判断是网点网格还是普通网格
+            if(d.gridID < 1156){
+                return `netgrid-${d.gridID}`
+            } else {
+                return `grid-${d.gridID}`
+            }
+        })
+        .attr("class", "radarPath")
+        .style("fill", "none")
+        .style("stroke", "#737373") // 初始为灰色
+        .style("stroke-width", 2)
+        .style('stroke-opacity', 0.8)
+        // 初始化时根据选中状态设置样式
+        if (selectedGridIDs.includes(d.gridID)) {
+            path.style("stroke", "#7EA8CB")
+                .style("stroke-width", 4);
+        }
+        path.on('click', function() {
+            // 根据 ID 查找 data
+            lastItem.value = data.value.find(item => item.gridID == d.gridID);
+            lastItemValue.splice(0, lastItemValue.length, ...lastItem.value.value.map(d => d.toFixed(1)));
+            
+            // 确定选择的 path（对应网格）
+            pathStore.selectPath(d.gridID);
+            console.log("pathID:", pathStore.pathID);
+            console.log(d3.select(this).style('stroke'));
+            
+            // 重置所有路径的颜色为灰色
+            svg.selectAll('path')
+                .style('stroke', '#737373')
+                .style('stroke-width', 2);
+
+            // 判断当前点击路径是否已经选中（即是否是灰色）
+            if (d3.select(this).style('stroke') === 'rgb(115, 115, 115)') {
+                console.log('change color');
+                // 如果是灰色，变成蓝色
+                d3.select(this).style('stroke', '#7EA8CB').style('stroke-width', 4);
+            }
+
+            // 清除之前的 arc 和文本
+            d3.selectAll('.arcFill').remove();
+            d3.selectAll('.arcText').remove();
+
+            // 添加新的 arc
+            const arc = d3.arc()
+                .innerRadius(radius * 0.2)
+                .outerRadius(radius * 0.25)
+                .startAngle(-Math.PI)
+                .endAngle(scoreScale(d.score));
+
+            svg.append('path')
+                .attr('class', 'arcFill')
+                .attr('d', arc)
+                .attr('fill', '#1d7bd1');
+
+            // 小圆区域添加文本
+            svg.append('text')
+                .attr('class', 'arcText')
+                .text(d.score.toFixed(2))
+                .attr('x', 0)
+                .attr('y', -radius * 0.1)
+                .attr('text-anchor', 'middle')
+                .attr('dy', '0.5em')
+                .attr('font-size', 12)
+                .attr('fill', '#2B587D')
+                .attr('font-weight', 'bold');
+        });
+});
+
 
     // d3绘制雷达图的轴线
     const axis = svg.selectAll(".axis")
@@ -256,75 +280,144 @@ const createRadar = () => {
         .attr('stroke','#888888')
 
 }
-const highlightLine = (d) => {
-    console.log("highlight:",d.gridID)
-    const svgHeight = radar.value.clientHeight
-    const svgWidth = radar.value.clientWidth
-    const radius = Math.min(svgWidth, svgHeight) - 10;
-   // 重置所有路径的样式
-   const radarSvg = d3.select('#radarSvg')
-   radarSvg.selectAll('path')
-        .style('stroke', '#737373')  // 设置默认的灰色边框
-        .style('stroke-width', 2);   // 恢复默认的边框宽度
+// const highlightLine = (d) => {
+//     console.log("highlight:",d.gridID)
+//     const svgHeight = radar.value.clientHeight
+//     const svgWidth = radar.value.clientWidth
+//     const radius = Math.min(svgWidth, svgHeight) - 10;
+//    // 重置所有路径的样式
+//    const radarSvg = d3.select('#radarSvg')
+//    radarSvg.selectAll('path')
+//         .style('stroke', '#737373')  // 设置默认的灰色边框
+//         .style('stroke-width', 2);   // 恢复默认的边框宽度
 
-    // 检查当前路径的颜色并设置高亮
-    //检测是否是网点网格
-    if(d.gridID < 1156){
-        const selectedPath = radarSvg.select(`#netgrid-${d.gridID}`); // 使用 gridID 选择当前路径
+//     // 检查当前路径的颜色并设置高亮
+//     //检测是否是网点网格
+//     if(d.gridID < 1156){
+//         const selectedPath = radarSvg.select(`#netgrid-${d.gridID}`); // 使用 gridID 选择当前路径
+//         const isSelected = selectedPath.style('stroke') === 'rgb(115, 115, 115)'; // 如果是默认颜色，则选中
+//         if (isSelected) {
+//             selectedPath.style('stroke', '#7EA8CB') // 高亮颜色
+//                         .style('stroke-width', 4); // 增加宽度
+//         }
+//         return
+//     }
+//     else{
+//         const selectedPath = radarSvg.select(`#grid-${d.gridID}`); // 使用 gridID 选择当前路径
+//         const isSelected = selectedPath.style('stroke') === 'rgb(115, 115, 115)'; // 如果是默认颜色，则选中
+//         console.log(selectedPath)
+//         if (isSelected) {
+//             selectedPath.style('stroke', '#7EA8CB') // 高亮颜色
+//                         .style('stroke-width', 4); // 增加宽度
+//         }
+//     }
+
+//     // 清除之前的 arc 和文本
+//     radarSvg.selectAll('.arcFill').remove();
+//     radarSvg.selectAll('.arcText').remove();
+// }
+
+const updateRadarHighlight = (selectedGridIDs) => {
+    console.log("highlighting selected grids:", selectedGridIDs);
+
+    const svgHeight = radar.value.clientHeight;
+    const svgWidth = radar.value.clientWidth;
+    const radius = Math.min(svgWidth, svgHeight) - 10;
+    
+    // 获取当前的雷达 SVG
+    const radarSvg = d3.select('#radarSvg');
+    
+    // 先重置所有路径的样式
+    // radarSvg.selectAll('path')
+    //     .style('stroke', '#737373')  // 设置默认的灰色边框
+    //     .style('stroke-width', 2);   // 恢复默认的边框宽度
+
+    // 删除未选中网格的轴线 用于取消网格操作
+    // radarSvg.selectAll('path')
+    //     .each(function() {
+    //         const path = d3.select(this);
+    //         const gridID = path.attr('id').split('-')[1]; // 假设 ID 格式是 "netgrid-<gridID>"
+    //         if (!selectedGridIDs.includes(Number(gridID))) {
+    //             console.log("removing path:", gridID);
+    //             path.remove(); // 如果网格 ID 没有被选中，则删除对应的路径
+    //         }
+    //     });
+
+    // 删除之前的高亮路径
+    radarSvg.selectAll('.radarPath').remove();
+
+    // 对于每个已选中的网格 ID，设置高亮：会重复新增path svg
+    selectedGridIDs.forEach(gridID => {
+        const selectedPath = radarSvg.select(`#netgrid-${gridID}`); // 使用 netgrid-${gridID} 选择当前路径
         const isSelected = selectedPath.style('stroke') === 'rgb(115, 115, 115)'; // 如果是默认颜色，则选中
+
         if (isSelected) {
-            selectedPath.style('stroke', '#7EA8CB') // 高亮颜色
-                        .style('stroke-width', 4); // 增加宽度
+            selectedPath
+                //.classed('highlight-path', true)
+                .style('stroke', '#7EA8CB') // 高亮颜色
+                .style('stroke-width', 4); // 增加宽度
         }
-        return
-    }
-    else{
-        const selectedPath = radarSvg.select(`#grid-${d.gridID}`); // 使用 gridID 选择当前路径
-        const isSelected = selectedPath.style('stroke') === 'rgb(115, 115, 115)'; // 如果是默认颜色，则选中
-        console.log(selectedPath)
-        if (isSelected) {
-            selectedPath.style('stroke', '#7EA8CB') // 高亮颜色
-                        .style('stroke-width', 4); // 增加宽度
-        }
-    }
+    });
 
     // 清除之前的 arc 和文本
     radarSvg.selectAll('.arcFill').remove();
     radarSvg.selectAll('.arcText').remove();
+};
 
-    // 创建一个新的弧形区域并显示得分
-    // const arc = d3.arc()
-    //     .innerRadius(radius * 0.2)
-    //     .outerRadius(radius * 0.25)
-    //     .startAngle(-Math.PI)
-    //     .endAngle(scoreScale(d.score));
+const watchNumUpdateLine = (selectedGrid) => {
+    //选择网格时，高亮该网格对应的轴线
+    const radarSvg = d3.select('#radarSvg');
 
-    // radarSvg.append('path')
-    //     .attr('class', 'arcFill')
-    //     .attr('d', arc)
-    //     .attr('fill', '#1d7bd1'); // 设置颜色为蓝色
+    //首先 重置所有路径的样式
+    radarSvg.selectAll('path')
+        .style('stroke', '#737373')  // 设置默认的灰色边框
+        .style('stroke-width', 2);   // 恢复默认的边框宽度
 
-    // // 在小圆区域上添加文本，显示当前得分
-    // radarSvg.append('text')
-    //     .attr('class', 'arcText')
-    //     .text(d.score.toFixed(2))  // 格式化得分为两位小数
-    //     .attr('x', 100)
-    //     .attr('y', -radius * 0.1)
-    //     .raise()
-    //     .attr('text-anchor', 'middle')
-    //     .attr('dy', '0.5em')
-    //     .attr('font-size', 12)
-    //     .attr('fill', '#2B587D')  // 设置字体颜色
-    //     .attr('font-weight', 'bold'); // 设置加粗字体
+    // 获取最后一个选中的网格ID
+    const lastSelectedGridID = selectedGrid[selectedGrid.length - 1];
+
+    // 高亮该网格对应的轴线
+    const selectedPath = radarSvg.select(`#netgrid-${lastSelectedGridID}`);
+    selectedPath.style('stroke', '#7EA8CB').style('stroke-width', 4);
+
+    //当取消网格时 删除该网格对应的轴线
+    radarSvg.selectAll('path')
+        .each(function() {
+            const path = d3.select(this);
+            const gridID = path.attr('id').split('-')[1]; // 假设 ID 格式是 "netgrid-<gridID>"
+            if (!selectedGrid.includes(Number(gridID))) {
+                console.log("removing path:", gridID);
+                console.log("removing path:", gridID);
+                path.remove(); // 如果网格 ID 没有被选中，则删除对应的路径
+            }
+        });
 }
+
 const clearChart = () => {
-    d3.select(radar.value).selectAll('path').remove()
-    d3.select(radar.value).selectAll('text').remove()
-    // pathID = -1
-    pathStore.cancelPath()
-    // 清除data
-    data.value.splice(0,data.value.length)
+    // 清除雷达图中的所有路径（轴线）
+    d3.select(radar.value).selectAll('path').remove();
+    
+    // 清除雷达图中的所有文本（例如，弧形文本或标签）
+    d3.select(radar.value).selectAll('text').remove();
+    
+        // 清除所有已选网格的高亮（将边框恢复为默认灰色）
+    
+        d3.selectAll('.net-grid-cell')  // 选择所有网格矩形    
+       .style('stroke', '#737373')  // 恢复边框为灰色
+        .style('stroke-width', 2);   // 恢复默认边框宽度
+
+    // 清除所有选中的网格：取消所有高亮和选择状态
+    const gridStore = useGridSelectorStore();
+    gridStore.clearGrid();  // 调用 store 中的清除方法，清除所有选中的网格
+    
+    // 如果有 pathID（例如用于存储当前选中的网格ID），则重置为 -1
+    pathStore.cancelPath();  // 取消当前的 pathID（重置选中的网格）
+
+    // 清除 data 中的所有数据
+    data.value.splice(0, data.value.length);  // 清空 data 数组中的所有内容
 }
+
+
 const calulateScore = () => {
     sumWeight.value = populationWeight.value + housePriceWeight.value + poiDensityWeight.value + poiDiversityWeight.value
     // 利用新权重重新计算每组数据中的商业化水平分数score
@@ -349,59 +442,68 @@ const reset = () => {
     sumWeight.value = 1.23
 }
 onMounted(()=>{
-    // createRadar()
-})
-watch(bound,(newBound)=>{
-    console.log("________________")
-    fetchData(newBound)
+
 })
 
-watch(data.value,()=>{
-    // 计算每个指标的最大值和最小值
-    // populationMax = d3.max(data.value, d => d.value[0]);
-    // housePriceMax = d3.max(data.value, d => d.value[1]);
-    // poiDensityMax = d3.max(data.value, d => d.value[2]);
-    // poiDiversityMax = d3.max(data.value, d => d.value[3]);
-    // populationMin = d3.min(data.value, d => d.value[0]);
-    // housePriceMin = d3.min(data.value, d => d.value[1]);
-    // poiDensityMin = d3.min(data.value, d => d.value[2]);
-    // poiDiversityMin = d3.min(data.value, d => d.value[3]);
-    // scoreMax = d3.max(data.value, d => d.score);
-    // scoreMin = d3.min(data.value, d => d.score);
+// 修改watch函数中的Promise处理逻辑
+watch(
+    () => ({
+        grids: [...gridStore.grids.keys()],
+        version: gridStore.num
+    }),
+    async ({ grids }) => {
+        console.log("网格状态更新:", grids);
 
-    console.log('data change')
-    // gridSelected = true
-    // console.log(gridSelected)
-    console.log(lastItemValue)
-    if(data.value.length === 0){
-        // 清空lastItemV
-        lastItemValue.splice(0,lastItemValue.length)
-        console.log(lastItemValue)
-        return
+        try {
+            // 阶段1：数据加载（带超时控制）
+            const requests = Array.from(gridStore.grids.values(), bound => 
+                fetchData(bound).catch(e => {
+                    console.error(`加载数据失败: ${e.message}`);
+                    return null;
+                })
+            );
+
+            // 使用Promise.allSettled确保所有请求都有结果
+            const results = await Promise.allSettled(requests);
+
+            console.log("数据加载完成:", results); //value 为 undefined
+            
+            // 处理结果：保留成功请求的数据
+            const successfulData = results
+                .filter(result => result.status === 'fulfilled' && result.value)
+                .map(result => result.value)
+                .flat();
+
+            console.log("有效数据加载完成:", successfulData);
+
+            // 过滤无效数据并展平
+            data.value = successfulData.filter(Boolean);
+            console.log("有效数据加载完成:", data.value);
+
+            // 阶段2：视图更新
+            //await nextTick(); 
+            console.log("数据加载完成，开始更新视图");
+            createRadar(grids);
+        } catch (e) {
+            console.error("数据加载异常:", e);
+        }
+    },
+    {
+        deep: true,
+        immediate: true,
+        flush: 'post'
     }
-    lastItem.value = data.value[data.value.length-1]
-    lastItemValue.splice(0,lastItemValue.length,...lastItem.value.value.map(d => d.toFixed(1)))
-    // 保留一位小数
-    // lastItemValue = lastItemValue.map(d => d.toFixed(2))
-    console.log(lastItemValue)
-    createRadar()
+);
 
-    console.log("grid ID:",gridID.value)
-    console.log("data value:",data.value)
-    // 查找符合ID的数据
-    const selectedData = data.value.find(d => d.gridID == gridID.value)
-    console.log("selectData:",selectedData)
-    highlightLine(selectedData)
-})
 
 </script>
 
 <template>
     <p style="font-size: 16px;font-weight:bold;margin:0.2rem">网格商业化水平详情</p>
     <div id="container">
-        <div style="display: flex;justify-content:flex-end;width:95%">
+        <!-- <div style="display: flex;justify-content:flex-end;width:95%">
              <el-button color="#ecf5ff" type="primary" @click="clearChart">清除</el-button>
-        </div>
+        </div> -->
 
         <div ref="radar" class="radarChart"></div>
         <div id="bottomDiv">

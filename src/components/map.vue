@@ -68,6 +68,7 @@ const dataSource = ref('bank')
 const pathStore = pathGridStore()
 const {pathID} = storeToRefs(pathStore)
 const poiStore = usePoiDetailStore()
+const {poiIndustryData} = storeToRefs(poiStore)
 let dataSourceFlag = true // true:银行  false:物流
 let poiData = []
 let gridData = []
@@ -288,8 +289,19 @@ const deleteComparison = (index) => {
 }
 
 const clearGrid = () => {
-    d3.select('#net-grid').remove()
+    // 清除网格：移除所有网格元素
+    d3.select('#net-grid').remove();
+
+    // 清除雷达图的路径、弧形和文本
+    d3.select('#radarSvg').selectAll('path').remove();  // 移除所有雷达图的路径
+    d3.select('#radarSvg').selectAll('.arcFill').remove();  // 移除所有 arcFill 元素
+    d3.select('#radarSvg').selectAll('.arcText').remove();  // 移除所有 arcText 元素
+
+    // 清除 gridStore 中的网格数据
+    const gridStore = useGridSelectorStore();
+    gridStore.clearGrid();  // 调用 clearGrid 动作来清除 gridStore 中的网格数据
 }
+
 
 const createMap = () => {
     // 添加图层控制
@@ -807,6 +819,7 @@ const generateGrid = (lat,lon) => {
         .data(netGridData)
         .enter()
         .append('rect')
+        .attr('class', 'net-grid-cell')
         .attr('id',d=>{
             console.log(d)
                 return `netgrid-${d.id}`
@@ -932,16 +945,44 @@ const updateDotmapLayer = (data) => {
     //console.log("dotmapLayer is:",dotmapLayer.value)
 }
 const createPoiDataDotMap = (data) => {
+    if (!data || data.length === 0) {
+        console.error("无效数据输入");
+        return;
+    }
+
+    // 过滤无效数据并生成 GeoJSON
+    const geoData = data.map(d => {
+      const lon = parseFloat(d.lon);
+      const lat = parseFloat(d.lat);
+      if (isNaN(lon) || isNaN(lat)) {
+        console.error("Invalid coordinates:", d);
+        return null;
+      }
+      return {
+        type: "Feature",
+        geometry: { type: "Point", coordinates: [lon, lat] },
+        properties: d
+      };
+    }).filter(Boolean);
+
+   if (geoData.length === 0) {
+      console.error("No valid data to render");
+      return;
+    }
+
+    
     //console.log("createPoiDataDotMap")
     //initDotmapLayer(data)
-    d3.select(map.value.getPanes().overlayPane).selectAll('#poidotmapLayer').remove()
-    // initDotmapLayer(data)
+    // 清理旧图层和事件监听
+    d3.select(map.value.getPanes().overlayPane).selectAll('#poidotmapLayer').remove();
     const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","poidotmapLayer")
     const g = svg.append("g").attr("class", "leaflet-zoom-hide")
     const transform = d3.geoTransform({point: projectPoint})
     const path = d3.geoPath().projection(transform)
+    console.log("函数中的data:",data)// 正确输出数组
+    console.log("Is array?", Array.isArray(data)); // 输出 true
+    
 
-    const geoData = data.map(d => ({type: "Feature", geometry: {type: "Point", coordinates: [d.lon, d.lat]}, properties: d}))
     // console.log(geoData)
     const feature = g.selectAll("circle")
         .data(geoData)
@@ -973,35 +1014,24 @@ const createPoiDataDotMap = (data) => {
             d3.select(this).attr('stroke','none')
             d3.select('#circle-tooltip').style('display','none');
         })
-        .on(('click'),function(e,d){
-            console.log(d.properties)
-            // 只能选择邮政网点
-            if(d.properties.type.includes('邮政')||d.properties.name.includes('邮政')){
-                console.log(d.properties.name)
-                //记录选中的网点的全局状态
-                netSelectorStore.setSelectedNet(d.properties)
-                //把网格选择清空
-                const gridStore = useGridSelectorStore();
-                gridStore.clearGrid();
-                generateGrid(d.properties.lat,d.properties.lon)
-            }
-        })
 
     map.value.on("zoomend", reset)
     reset()
 
     function reset() {
+        console.log("reset geodata:",geoData)
         const bounds = path.bounds({type: "FeatureCollection", features: geoData})
+        console.log("bounds:",bounds)
         const topLeft = bounds[0]
         const bottomRight = bounds[1]
         const margin = 10
         const width = bottomRight[0] - topLeft[0] + margin * 2
         const height = bottomRight[1] - topLeft[1] + margin * 2
         // 检查是否有无效值
-        // if (!isFinite(width) || !isFinite(height)) {
-        //     console.error("Invalid bounds:", bounds)
-        //     return
-        // }
+        if (!isFinite(width) || !isFinite(height)) {
+            console.error("Invalid bounds:", bounds)
+            return
+        }
         svg.attr("width", width)
             .attr("height", height)
             .style("left", (topLeft[0] - margin) + "px")
@@ -1028,6 +1058,7 @@ const createPoiDataDotMap = (data) => {
     }
 
 }
+
 const createAggregationLayer = () => {
     //console.log("createTestLayer")
     var markers = L.markerClusterGroup({chunkedLoading:true})
@@ -1041,18 +1072,32 @@ const createAggregationLayer = () => {
 }
 watch(pathID,()=>{
     console.log(pathID.value)
-    // 取消网格高亮
-    d3.selectAll('rect')            
-            .attr("stroke", "#737373")
-            .attr("stroke-width", 1)
-    // 根据pathID高亮rect
-    d3.select(`#grid-${pathID.value}`)
+    // 将已经选择的所有网格高亮为red
+    const gridStore = useGridSelectorStore();
+
+    // 获取所有已选择的网格的 ID
+    const selectedGridIDs = Array.from(gridStore.grids.keys());  // 获取所有已选网格的 ID
+
+    // 高亮已选择的网格的边框为红色
+    selectedGridIDs.forEach(gridID => {
+        d3.select(`#grid-${gridID}`)
             .raise()       
             .attr("stroke", "red")
             .attr("stroke-width", 2)
-    d3.select(`#netgrid-${pathID.value}`)
+        d3.select(`#netgrid-${gridID}`)
             .raise()       
             .attr("stroke", "red")
+            .attr("stroke-width", 2)
+    });
+
+    // 根据pathID高亮rect
+    d3.select(`#grid-${pathID.value}`)
+            .raise()       
+            .attr("stroke", "blue")
+            .attr("stroke-width", 2)
+    d3.select(`#netgrid-${pathID.value}`)
+            .raise()       
+            .attr("stroke", "blue")
             .attr("stroke-width", 2)
     
 })
@@ -1149,23 +1194,16 @@ watch(dataSource,(newdataSource)=>{
         })
     }
 })
-watch(()=>poiStore.poiData,(newPoiData)=>{
-    console.log(newPoiData)
-    if(newPoiData){
-        // poiData = newPoiData
-        // if(dotmapLayer.value && map.value.hasLayer(dotmapLayer.value)){
-        //     dotmapLayer.value.clearLayers()
-        //     updateDotmapLayer(poiData)
-        // }
-        // if(aggregationLayer.value && map.value.hasLayer(aggregationLayer.value)){
-        //     aggregationLayer.value.clearLayers()
-        //     createAggregationLayer()
-        // }
-        //console.log("poi data changed!")
-        createPoiDataDotMap(newPoiData)
-        isPoiData = true
+
+watch(
+  () => poiStore.poiIndustryData,
+  (newPoiData) => {
+    console.log("newPoiData length",newPoiData.length)
+    if (newPoiData.length > 0) {
+      createPoiDataDotMap(newPoiData);
     }
-})
+  }
+);
 
 const getPoiMax = async () => {
     const response = await fetch('http://localhost:5000/api/get_poiNum', {
@@ -1184,7 +1222,7 @@ onMounted(()=>{
     //const [wgsLat, wgsLng] = gcj02ToWgs84(coords[0], coords[1]); // 调整参数顺序
     map.value = L.map('mapContainer', {attributionControl: false,
     layers:[baseMapLayer]
-}
+    }
     ).setView([wgsLat,wgsLng], 11)
     
     // getPoiMax();

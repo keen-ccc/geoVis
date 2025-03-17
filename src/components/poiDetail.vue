@@ -1,5 +1,5 @@
 <script setup>
-import { ref,onMounted,watch} from 'vue'
+import { ref,onMounted,watch, watchEffect, computed} from 'vue'
 import svgHolder from './svgHolder.vue'
 import {useGridSelectorStore} from '@/store/gridSelector'
 import {usePoiDetailStore} from '@/store/poiDetail'
@@ -9,12 +9,11 @@ const poiData = ref([])
 const poiFilter = ref(null)
 const selection = ref('银行')
 const gridStore = useGridSelectorStore()
-const { bound } = storeToRefs(gridStore);
-
 const poiStore = usePoiDetailStore()
-const { num } = storeToRefs(gridStore);
+const { num } = storeToRefs(gridStore)
 
-poiData.value = []
+//const num = computed(() => gridStore.num)
+
 const fetchData = async(bound) => {
     //console.log("fetch poi data",bound)
     const params = {
@@ -33,10 +32,11 @@ const fetchData = async(bound) => {
         body:JSON.stringify(params)
     })
     const result = await res.json()
+    // 更新表格数据poiData
     poiData.value.push(...result)
     //console.log("poi data:",poiData.value)
-    poiStore.setPoiData(poiData)
-    // poiStore.setPoiData(result)
+    //console.log("循环...")
+    //poiStore.setPoiData(poiData.value)
     //console.log("poi store data:",poiStore.poiData)
 }
 
@@ -108,25 +108,65 @@ const options = [
     }
 ]
 
-const checkoutSelection = (value) => {
-    const grids = gridStore.grids;
-    console.log(grids);
-    for (let bound of grids.values())
-        fetchData(bound);
-    //console.log(value)
-    // fetchData(bound.value)
-}
-// watch(bound,(newBound)=>{
-//     fetchData(newBound)
-// })
-watch(num,(newNum)=>{
-  console.log("detailTable bound change")
+// const checkoutSelection = (value) => {
+    
+//     poiData.value = []
+    
+//     const grids = gridStore.grids;
+//     console.log(grids.values());
+//     ////console.log(grids);
+//     for (let bound of grids.values()){
+//         //console.log(bound)
+//         fetchData(bound);
+//     }
 
+
+//     poiStore.setPoiData(poiData.value)
+// }
+
+// 组件中修改后的函数
+const checkoutSelection = async (value) => {
+  // 清空旧数据
+  poiData.value = [];
+  
   const grids = gridStore.grids;
-  console.log(grids);
-  for (let bound of grids.values())
-    fetchData(bound);
-})
+  const promises = [];
+  
+  // 启动所有异步请求
+  for (const bound of grids.values()) {
+    promises.push(fetchData(bound));
+  }
+  
+  // 等待所有请求完成
+  await Promise.all(promises);
+  
+  // 响应式更新 Store
+  poiStore.setPoiData([...poiData.value]);
+};
+
+watch(
+    () => gridStore.num,
+    async (newVal) => {
+      // 清空旧数据（响应式安全）
+      poiStore.setPoiData([]);
+      poiData.value.splice(0, poiData.value.length);
+
+      const grids = gridStore.grids;
+      const promises = [];
+
+      for (const bound of grids.values()) {
+        promises.push(fetchData(bound));
+      }
+
+      // 等待所有数据加载完成
+      await Promise.all(promises);
+
+      // 更新 Store（使用深拷贝避免 Proxy 影响）
+      poiStore.setPoiData(JSON.parse(JSON.stringify(poiData.value)));
+      console.log("最终数据长度:", poiStore.poiIndustryData.length);
+    }
+)
+
 </script>
 
 <template>
