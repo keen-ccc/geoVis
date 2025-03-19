@@ -34,10 +34,6 @@ const fetchData = async(bound) => {
     const result = await res.json()
     // 更新表格数据poiData
     poiData.value.push(...result)
-    //console.log("poi data:",poiData.value)
-    //console.log("循环...")
-    //poiStore.setPoiData(poiData.value)
-    //console.log("poi store data:",poiStore.poiData)
 }
 
 const exportTable = () => {
@@ -160,6 +156,20 @@ watch(
 
       // 等待所有数据加载完成
       await Promise.all(promises);
+
+      //删除重复数据
+    //   poiData.value = Array.from(new Set(poiData.value)) //无法过滤对象
+    //   console.log("数据",poiData.value)
+
+    //console.log("过滤前数据",poiData.value)
+
+    const seen = new Set();
+    poiData.value = poiData.value.filter((item) => {
+      // 用 name 为唯一键
+      const key = `${item.name}`; 
+      return seen.has(key) ? false : seen.add(key);
+    });
+    //console.log("过滤后数据",poiData.value)
 
       // 更新 Store（使用深拷贝避免 Proxy 影响）
       poiStore.setPoiData(JSON.parse(JSON.stringify(poiData.value)));
