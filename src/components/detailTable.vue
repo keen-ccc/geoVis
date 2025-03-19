@@ -53,39 +53,123 @@ var valueScale = ref(null)
 var leafValueScale = ref(null)
 const customInterpolator = d3.interpolateRgbBasis(["#B8CFE2", "#345E80"]);
 
-const fetchData = async(bound) => {
+const fetchData = async (bound) => {
   const params = {
-      start_lon:bound.lonStart,
-      start_lat:bound.latStart,
-      end_lon:bound.lonEnd,
-      end_lat:bound.latEnd,
+    start_lon: bound.lonStart,
+    start_lat: bound.latStart,
+    end_lon: bound.lonEnd,
+    end_lat: bound.latEnd,
   }
-  console.log(params)
-  const tree_response = await fetch('http://localhost:5000/api/getIndustry', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(params)
-  })
-  treeData.value = await tree_response.json()
-  console.log("树数据：",treeData.value)
 
-  const res = await fetch('http://localhost:5000/api/getIndustryDetail', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json'
-    },
-    body: JSON.stringify(params)
-  })
-  filterTableData.value = await res.json()
-  tableData.value = filterTableData.value
-  console.log("表格数据：",filterTableData.value)
+  try {
+    // 获取树数据
+    const [treeResponse, tableResponse] = await Promise.all([
+      fetch('http://localhost:5000/api/getIndustry', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      }),
+      fetch('http://localhost:5000/api/getIndustryDetail', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(params)
+      })
+    ]);
 
+    return {
+      tree: await treeResponse.json(),
+      table: await tableResponse.json()
+    };
+  } catch (error) {
+    console.error('请求失败:', error);
+    return { tree: null, table: [] };
+  }
 }
-const drawTreeChart = () => {
-    d3.select(EntityDiagram.value).selectAll('*').remove();
 
+function mergeTreeData(trees) {
+  if (trees.length === 0) return null;
+
+  // 创建基准树结构（经营主体作为根节点）
+  const mergedTree = {
+    name: '经营主体',
+    value: 0,  // 临时值，后续替换为实际总数
+    children: []
+  };
+
+  // 递归合并函数（支持三层结构）
+  const deepMerge = (targetNodes, sourceNodes) => {
+    const nodeMap = new Map(targetNodes.map(n => [n.name, n]));
+    
+    for (const sourceNode of sourceNodes) {
+      let targetNode = nodeMap.get(sourceNode.name);
+      
+      if (!targetNode) {
+        // 新节点创建（保留原始结构）
+        targetNode = {
+          ...sourceNode,
+          value: sourceNode.value || 0,
+          children: []
+        };
+        targetNodes.push(targetNode);
+        nodeMap.set(sourceNode.name, targetNode);
+      } else {
+        // 合并数值（处理undefined）
+        targetNode.value += sourceNode.value || 0;
+      }
+
+      // 递归合并子节点（行业门类→子行业）
+      if (sourceNode.children?.length) {
+        targetNode.children = deepMerge(
+          targetNode.children,
+          sourceNode.children
+        );
+      }
+    }
+    
+    return targetNodes;
+  };
+
+  // 合并所有树的子节点（第二层行业门类）
+  trees.forEach(tree => {
+    mergedTree.children = deepMerge(
+      mergedTree.children,
+      tree.children || []
+    );
+  });
+
+  // 设置经营主体总数值
+  mergedTree.value = tableData.value.length;
+
+  // 数值校验与修正（处理三层结构）
+  const validateTree = (node) => {
+    if (node.children?.length) {
+      // 行业门类节点：值=子节点总和
+      const sum = d3.sum(node.children, c => c.value);
+      node.value = sum > 0 ? sum : node.value;
+      node.children.forEach(validateTree);
+    } else {
+      // 末端节点：保留原始值
+      node.value = node.value || 0;
+    }
+  };
+  validateTree(mergedTree);
+
+  // 智能清理空节点（保留结构层级）
+  // const cleanTree = (nodes) => {
+  //   return nodes.filter(n => {
+  //     if (n.children?.length) {
+  //       n.children = cleanTree(n.children);
+  //       return true; // 保留父节点即使自身值为0
+  //     }
+  //     return n.value > 0; // 只过滤末端零值
+  //   });
+  // };
+  // mergedTree.children = cleanTree(mergedTree.children);
+
+  return mergedTree;
+}
+
+const drawTreeChart = () => {
     const svgHeight = EntityDiagram.value.clientHeight;
     const svgWidth = EntityDiagram.value.clientWidth;
     // const {svgWidth,svgHeight} = EntityDiagram.value.getBoundingClientRect();
@@ -130,20 +214,17 @@ const drawTreeChart = () => {
         .join("circle")
         .attr("transform", d => `rotate(${d.x * 180 / Math.PI - 90}) translate(${d.y},0)`)
         .attr("r", d => {
-          if(d.children){
-            // 按照数量大小设置半径
-            // console.log(valueScale(d3.sum(d.children,c=>c.data.value)));
-            return valueScale(d3.sum(d.children,c=>c.data.value));
+          if (d.children) {
+            if(d.data.name == '经营主体'){
+              return 5;
+            }
+            return valueScale.value(  // 使用.value访问响应式对象
+              d3.sum(d.children, c => c.data.value)
+            );
           }
-          if(d.data.value == undefined) {
-            console.log(leafValueScale(0));
-            return leafValueScale(0);
-          }
-          else{
-            //console.log(leafValueScale(d.data.value));
-            return leafValueScale(d.data.value);
-          }
-          
+          return leafValueScale.value( // 使用.value访问响应式对象
+            d.data.value || 0  // 处理undefined情况
+          );
         })
         .attr('fill',d => {
             if(d.children){
@@ -154,42 +235,31 @@ const drawTreeChart = () => {
             }
             // return '#999'
         })
-        .on('mouseover',function(e,d){
-          d3.select(this).attr('stroke','black').attr('stroke-width',2);
+        .on('mouseover', function(e, d) {
+          d3.select(this).attr('stroke', 'black').attr('stroke-width', 2);
           d3.select('#class-name').text(d.data.name);
-          if(d.data.value){
-            d3.select('#class-value').text(d.data.value);
+
+          // 逻辑分层判断
+          if (d.data.name === '经营主体') {
+            // 经营主体特殊处理（优先判断）
+            d3.select('#class-value').text(tableData.value.length);
+          } else if (d.children) { 
+            // 中间层级节点（有子节点）
+            const sum = d3.sum(d.children, c => c.data.value || 0);
+            d3.select('#class-value').text(sum);
+          } else { 
+            // 末端节点（精确显示数值，包含0）
+            d3.select('#class-value').text(d.data.value ?? 0);
           }
-          else{
-            if(d.data.children){
-              // 如果不为空
-              if(d.data.children.length > 0){
-                if(d.data.name == '经营主体'){
-                  d3.select('#class-value').text(tableData.value.length);
-                }
-                else{
-                  d3.select('#class-value').text(d3.sum(d.data.children,c=>c.value));
-                }
-                // d3.select('#class-value').text(d3.sum(d.children,c=>c.data.value));
-              }
-              // else{
-              //   if(d.name === '经营主体'){
-              //     d3.select('#class-value').text(tableData.value.length);
-              //   }
-              //   else{
-              //     d3.select('#class-value').text(0);
-              //   }
-              // }
-            }
-          }
-          d3.select('#tooltip').style('display','block');
+
+          d3.select('#tooltip').style('display', 'block');
         })
         .on('mousemove',function(e,d){
           var svgRect = svg.node().getBoundingClientRect();
           var mouseX = e.clientX - svgRect.left;
           var mouseY = e.clientY - svgRect.top;
           //console.log(mouseX, mouseY);
-          d3.select('#tooltip').style('left', (mouseX - 5)+ 'px').style('top', ( mouseY + 40) + 'px');
+          d3.select('#tooltip').style('left', (mouseX - 10)+ 'px').style('top', ( mouseY + 50) + 'px');
         })
         .on('mouseout',function(e,d){
           d3.select(this).attr('stroke','none');
@@ -234,25 +304,91 @@ onMounted( async ()=>{
     //drawPieChart();
     //drawTreeChart();
 })
-watch(bound,(newBound)=>{
-  console.log("detailTable bound change")
-  fetchData(newBound)
-})
-watch(treeData,(newData)=>{
-  maxValue = d3.max(treeData.value.children,d => d3.max(d.children,c=>c.value));
-  console.log("最大值：",maxValue);
-  colorScale = d3.scaleSequential().domain([0,maxValue]).interpolator(customInterpolator);
-  treeData.value.children.forEach(d=>{ 
-  sumValue.value.push(d3.sum(d.children,c=>c.value))
-    })
-  valueScale = d3.scaleLinear().domain([0,d3.max(sumValue.value)]).range([4,7]);
-  leafValueScale = d3.scaleLinear().domain([0,maxValue]).range([2,5]);
-  console.log("treeData change")
-  drawTreeChart();
-})
-watch(tableData,(newData)=>{
-  console.log("tableData change")
-})
+
+watch(
+    () => gridStore.num,
+    async (newVal) => {
+      // 清空旧数据（响应式安全）
+      treeData.value = null;
+      tableData.value = [];
+      filterTableData.value = [];
+      sumValue.value = [];
+      maxValue.value = 0;
+      colorScale.value = null;
+      valueScale.value = null;
+      leafValueScale.value = null;
+
+      const grids = gridStore.grids;
+      const promises = [];
+
+      // 存储临时数据的数组
+      const allTreeData = [];
+      const allTableData = [];
+
+
+      for (const bound of grids.values()) {
+        promises.push(
+          fetchData(bound).then(({tree, table }) => {
+            allTreeData.push(tree);
+            allTableData.push(...table);
+          })
+        );
+      }
+
+      // 等待所有数据加载完成
+      await Promise.all(promises);
+
+      console.log("allTreeData",allTreeData)//没问题
+      // 合并树数据
+      if (allTreeData.length > 0) {
+        treeData.value = mergeTreeData(allTreeData);
+      }
+      console.log("treeData",treeData.value)
+      // 合并表格数据
+      tableData.value = allTableData;
+      filterTableData.value = allTableData;
+
+      //tableData.value = filterTableData.value;
+
+      if(!treeData.value){
+        console.log("treeData为空",treeData.value)
+        d3.select(EntityDiagram.value).selectAll('*').remove();
+        return;
+      }
+
+      // 重新绘制图表
+      if (treeData.value?.children) {
+      
+        maxValue.value = d3.max(treeData.value.children, d => 
+          d3.max(d.children, c => c.value)
+        );
+        colorScale.value = d3.scaleSequential()
+          .domain([0, maxValue.value])
+          .interpolator(customInterpolator);
+        
+        sumValue.value = treeData.value.children.map(d => 
+          d3.sum(d.children, c => c.value)
+        );
+
+        console.log("maxValue",maxValue.value)
+        console.log("sumValue",sumValue.value)
+        
+        valueScale.value = d3.scaleLinear()
+          .domain([0, d3.max(sumValue.value)])
+          .range([4,7]);
+
+        console.log("valueScale",valueScale.value)
+        
+        leafValueScale.value = d3.scaleLinear()
+          .domain([0, maxValue.value])
+          .range([2,5]);
+
+
+        drawTreeChart();
+      }      
+
+    }
+)
 </script>
 
 <style scoped>

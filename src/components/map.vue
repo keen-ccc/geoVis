@@ -94,7 +94,7 @@ const props1 = {
 //https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}
 // 图层
 let baseMapLayer = L.tileLayer('https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',{
-    maxZoom: 16,
+    maxZoom: 18,
     minZoom: 10,
 })
 let heatmapLayer = ref(null)
@@ -300,6 +300,12 @@ const clearGrid = () => {
     // 清除 gridStore 中的网格数据
     const gridStore = useGridSelectorStore();
     gridStore.clearGrid();  // 调用 clearGrid 动作来清除 gridStore 中的网格数据
+
+    // 每次只能选择一个邮政网点
+    selectedNetFlag.value = false
+
+    // 清除poiDotMap
+    d3.select('#poidotmapLayer').remove()
 }
 
 
@@ -332,33 +338,6 @@ const createMap = () => {
         }
         if(e.name == '网格图'){
             initGridLayer(gridData)
-            // var cols = getFileName()
-            // var name = '/grid500/grid_500_'+cols[0]+'.geojson'
-            // console.log("name", name)
-            // d3.json(name).then(function(data) {
-            //     // 处理加载的数据
-            //     // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
-            //     gridData = data
-            //     // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
-            //     if(cols[1] !== cols[0]) {
-            //         name = '/grid500/grid_500_'+cols[1]+'.geojson'
-            //         d3.json(name).then(function(data) {
-            //             gridData.features.push(...data.features)
-            //             initGridLayer(gridData)
-                        
-            //         }).catch(function(error) {
-            //             console.error("Error loading the GeoJSON file:", error);
-            //         });
-            //     } else {
-            //         console.log("js"+JSON.stringify(gridData)); // 输出 GeoJSON 数据到控制台
-            //         initGridLayer(gridData)
-            //     }
-                
-            //     // initGridLayer(gridData)
-            // }).catch(function(error) {
-            //     console.error("Error loading the GeoJSON file:", error);
-            // });
-            
         }
     })
     map.value.on('overlayremove',(e)=>{
@@ -381,20 +360,6 @@ const createMap = () => {
             aggregationLayer.value.clearLayers()
         }
     })
-
-    // createGrid()
-    // createAggregationLayer()
-    // 如果热力图层已初始化，则添加到地图
-    // if (heatmapLayer.value) {
-    //     heatmapLayer.value.addTo(map.value);
-    // }
-    // // 如果点图层已初始化，则添加到地图
-    // if(dotmapLayer.value){
-    //     dotmapLayer.value.addTo(map.value)
-    // }
-    // if(testLayer.value){
-    //     testLayer.value.addTo(map.value)
-    // }
 }
 
 // var map_bounds 
@@ -579,15 +544,6 @@ const initGridLayer = (data1) => {
 }
 
 const initDotmapLayer = (data) => {
-    //dotmapLayer.value = L.layerGroup()
-    //console.log("isPoiData",isPoiData)
-    // let svg;
-    // if(isPoiData == true){
-    //     svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","poidotmapLayer")
-    // }
-    // else{
-    //     svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","dotmapLayer")
-    // }
     const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","dotmapLayer")
     //svg.lower();
     const g = svg.append("g").attr("class", "leaflet-zoom-hide")
@@ -681,10 +637,16 @@ const initDotmapLayer = (data) => {
             console.log(d.properties)
             // 只能选择邮政网点
             if(d.properties.type.includes('邮政')||d.properties.name.includes('邮政')){
+                // 如果已经选中了一个网点，则不允许选中其他网点
+                if(selectedNetFlag.value){
+                    alert("当前已选中一个网点，请先取消选中该网点。")
+                    return
+                }
                 console.log(d.properties.name)
                 //记录选中的网点的全局状态
                 netSelectorStore.setSelectedNet(d.properties)
                 generateGrid(d.properties.lat,d.properties.lon)
+                selectedNetFlag.value = true
             }
         })
 
@@ -851,24 +813,6 @@ const generateGrid = (lat,lon) => {
                 addHightlight(this);
             }
             gridStore.selectGrid(d.id, point1, point2);
-            // if(selectedNetFlag.value){
-            //     gridStore.selectGrid(d.id, point1, point2)
-            //     addHightlight(this);
-            //     removeHightlight(selectedNet);
-            //     selectedNet = this;
-            // }
-            // else if(selectedNet == this){
-            //     selectedNetFlag.value = false;
-            //     removeHightlight(this);
-            //     gridStore.cancelGrid()
-            // }
-            // else{
-            //     selectedNetFlag.value = true;
-            //     selectedNet = this
-            //     addHightlight(this)
-            //     gridStore.selectGrid(d.id, point1, point2)
-            // }
-
         });
 
     // 保存网格层以便后续移除
@@ -983,37 +927,41 @@ const createPoiDataDotMap = (data) => {
     console.log("Is array?", Array.isArray(data)); // 输出 true
     
 
-    // console.log(geoData)
-    const feature = g.selectAll("circle")
+    const feature = g.selectAll("g")
         .data(geoData)
-        .enter().append("circle")
-        .attr('id','dot')
-        .attr("r",(d =>{
-            if(map.value.getZoom() < 14){
-                return 2
-            }
-            else{
-                return 5
-            }
-        }))
-        .attr("fill",'#FF0000')
-        .on('mouseover',function(e,d){
-            d3.select(this).attr('stroke','black').attr('stroke-width',2)
-            console.log(d.properties.name)
-            d3.select('#tooltip-name').text(d.properties.name)
-            d3.select('#tooltip-address').text(d.properties.address)
-            d3.select('#circle-tooltip').style('display', 'block');
+        .enter()
+        .append("g")
+        .attr("id","dot")
+
+    // 绘制外圆环
+    feature.append("circle")
+    .attr("r", d => map.value.getZoom() < 14 ? 2 : 4)
+    .attr("fill", "none")
+    .attr("stroke", "red")
+    .attr("stroke-width", d => map.value.getZoom() < 14 ? 1 : 3);
+
+    // 绘制内圆
+    feature.append("circle")
+        .attr("r", d => map.value.getZoom() < 14 ? 1 : 2)
+        .attr("fill", "none");
+
+    // console.log(geoData)
+    feature.on('mouseover', function (e, d) {
+        d3.select(this).select("circle").attr('stroke', 'black').attr('stroke-width', 2);
+        console.log(d.properties.name);
+        d3.select('#tooltip-name').text(d.properties.name);
+        d3.select('#tooltip-address').text(d.properties.address);
+        d3.select('#circle-tooltip').style('display', 'block');
+    })
+        .on('mousemove', function (e, d) {
+            const mouseX = e.clientX + 10;
+            const mouseY = e.clientY + 10;
+            d3.select('#circle-tooltip').style('left', `${mouseX}px`).style('top', `${mouseY}px`);
         })
-        .on('mousemove',function(e,d){
-            // 获取circle位置
-            const mouseX = e.clientX + 10
-            const mouseY = e.clientY + 10
-            d3.select('#circle-tooltip').style('left',`${mouseX}px`).style('top', `${mouseY}px`);
-        })
-        .on('mouseout',function(e,d){
-            d3.select(this).attr('stroke','none')
-            d3.select('#circle-tooltip').style('display','none');
-        })
+        .on('mouseout', function (e, d) {
+            d3.select(this).select("circle").attr('stroke', 'red').attr('stroke-width', 3);
+            d3.select('#circle-tooltip').style('display', 'none');
+        });
 
     map.value.on("zoomend", reset)
     reset()
