@@ -174,6 +174,7 @@ const drawTreeChart = () => {
     const svgWidth = EntityDiagram.value.clientWidth;
     // const {svgWidth,svgHeight} = EntityDiagram.value.getBoundingClientRect();
      //console.log(svgHeight,svgWidth);
+    d3.select(EntityDiagram.value).selectAll('*').remove(); // 清空旧图表
     const svg = d3.select(EntityDiagram.value)
         .append('svg') 
         .attr('width',svgWidth)

@@ -6,6 +6,9 @@ import {useGridSelectorStore} from '@/store/gridSelector'
 import {pathGridStore} from '@/store/pathSelector'
 import { storeToRefs } from 'pinia'
 import { reactive } from 'vue';
+import {useNetSelectorStore} from '@/store/netSelector'
+
+const netSelectorStore = useNetSelectorStore();
 
 const radar = ref(null)
 const radarAxis = ['人口密度', '平均房价', 'POI密度', 'POI多样性']
@@ -13,6 +16,7 @@ const data = ref([])
 const lastItem = ref(data.value[data.value.length-1])
 // var gridSelected = false
 var lastItemValue = reactive([])
+//预设了初始权重
 const populationWeight = ref(0.13)
 const housePriceWeight = ref(0.43)
 const poiDensityWeight = ref(0.36)
@@ -25,10 +29,14 @@ const  state  = storeToRefs(gridStore);
 const {pathID} = storeToRefs(pathStore)
 
 var populationScale,housePriceScale,poiDensityScale,poiDiversityScale,scoreScale = null;
+
+// 预设的最大最小值
 var populationMax = 165134.45;
 var housePriceMax = 55852.33;
-var poiDensityMax = 1333;
-var poiDiversityMax = 1.55;
+// var poiDensityMax = 1333;
+// var poiDiversityMax = 1.55;
+var poiDensityMax = 3000;
+var poiDiversityMax = 2.1;
 var scoreMax = 1;
 var populationMin = 0;
 var housePriceMin = 0;
@@ -63,8 +71,11 @@ const fetchData = async (bound) => {
             housePriceWeight:housePriceWeight.value,
             poiDensityWeight:poiDensityWeight.value,
             poiDiversityWeight:poiDiversityWeight.value,
-            sumWeight:sumWeight.value
+            sumWeight:sumWeight.value,
+            //length:length.value
+            gridSize:netSelectorStore.gridSize
     }
+    console.log("gridSize:", params.gridSize);
     try {
         const res = await fetch('http://localhost:5000/api/cal_score', {
             method: 'POST',

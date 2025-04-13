@@ -699,7 +699,7 @@ const generateGrid = (lat,lon) => {
 
     const range = netSelectorStore.range;
     const gridSize = netSelectorStore.gridSize;
-    console.log(range,gridSize)
+    console.log("range,gridSize:",range,gridSize)
     //清除已有网格
     if(map.value.gridLayer){
         console.log("remove grid")

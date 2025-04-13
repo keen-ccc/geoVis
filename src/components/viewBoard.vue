@@ -4,6 +4,7 @@ import Map from './map.vue'
 import radarChart from './radarChart.vue'
 import poiDetail from './poiDetail.vue'
 import areaControl from "./areaControl.vue"
+im
 import { onMounted, onUnmounted } from 'vue';
 
 onMounted(() => {
@@ -20,9 +21,18 @@ onUnmounted(() => {
         <div class="title">
             GeoVis
         </div>
-        <div  class="control-container">
-            <areaControl></areaControl>
+        <div class="control-container">
+            <div class="control-grid">
+                <areaControl></areaControl>
+            </div>
+            <div class="control-entity">
+                
+            </div>
+
         </div>
+        <!-- <div  class="control-container">
+            <areaControl></areaControl>
+        </div> -->
         <div class="map-container">
             <Map/>
         </div>
@@ -58,7 +68,9 @@ onUnmounted(() => {
 }
 .control-container{
     grid-column:1;
-    grid-row:2;
+    grid-row:span 2;
+    display: grid;
+    grid-template-rows: 1fr 1fr;
     border:1px solid #b5b5b5;
 }
 .map-container{
