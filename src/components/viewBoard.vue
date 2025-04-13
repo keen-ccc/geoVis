@@ -4,7 +4,7 @@ import Map from './map.vue'
 import radarChart from './radarChart.vue'
 import poiDetail from './poiDetail.vue'
 import areaControl from "./areaControl.vue"
-im
+import entityControl from "./entityControl.vue"
 import { onMounted, onUnmounted } from 'vue';
 
 onMounted(() => {
@@ -26,7 +26,7 @@ onUnmounted(() => {
                 <areaControl></areaControl>
             </div>
             <div class="control-entity">
-                
+                <entityControl></entityControl>
             </div>
 
         </div>
@@ -71,7 +71,21 @@ onUnmounted(() => {
     grid-row:span 2;
     display: grid;
     grid-template-rows: 1fr 1fr;
+    /* border:1px solid #b5b5b5; */
+}
+.control-grid{
     border:1px solid #b5b5b5;
+    overflow:auto;
+    max-height: 100%;
+    -ms-overflow-style: none;  /* 对于 Internet Explorer 和 Edge */
+    scrollbar-width: none;  /* 对于 Firefox */
+}
+.control-entity{
+    border:1px solid #b5b5b5;
+    overflow:auto;
+    max-height: 100%;
+    -ms-overflow-style: none;  /* 对于 Internet Explorer 和 Edge */
+    scrollbar-width: none;  /* 对于 Firefox */
 }
 .map-container{
     grid-column:2;
