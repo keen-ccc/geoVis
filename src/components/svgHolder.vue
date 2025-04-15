@@ -12,6 +12,7 @@ import ZhusuSvg from '../../src/assets/zhusu.svg'
 import YiliaoSvg from '../../src/assets/yiliao.svg'
 import WenhuaSvg from '../../src/assets/wenhua.svg'
 import ZhengfuSvg from '../../src/assets/zhengfu.svg'
+import ZhuzhaiSvg from  '../../src/assets/zhuzhai.svg'
 
 const props = defineProps({
     value: String
@@ -28,7 +29,8 @@ const svgComponents = {
     "政府机构": ZhengfuSvg,
     "娱乐": YuleSvg,
     "汽车销售": QichexiaoshouSvg,
-    "汽车服务": QichefuwuSvg
+    "汽车服务": QichefuwuSvg,
+    "商务住宅": ZhuzhaiSvg,
 }
 </script>
 <template>

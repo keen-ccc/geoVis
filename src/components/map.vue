@@ -62,8 +62,8 @@ var selectedGrid = null
 var selectedNet = null
 const map =ref(null)
 const city = ref('成都市')
-const bankValue = ref(['中国邮政储蓄银行','中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行'])
-const expressValue = ref(['菜鸟','顺丰','京东','申通','圆通','中通','韵达','邮政'])
+const bankValue = ref(['中国邮政储蓄银行'])
+const expressValue = ref(['邮政'])
 const dataSource = ref('bank')
 const pathStore = pathGridStore()
 const {pathID} = storeToRefs(pathStore)
@@ -175,20 +175,20 @@ const controlGridLayer = () => {
     //     map.value.addLayer(gridLayer.value)
     //     grid_bool = 1;
     // }
-    if(zoomLevel >=15 && grid_bool==0){
-        // 如果没有添加控件
-        console.log(layerControl._layers[2])
-        if(layerControl._layers[4] == undefined){
-            layerControl.addOverlay(gridLayer.value, "网格图");
-        }
-        // map.value.addLayer(gridLayer.value)
-        // grid_bool = 1;
-    }
-    else{
-        layerControl.removeLayer(gridLayer.value);
-        d3.select('#gridSvg').remove()
-        // grid_bool = 0;
-    }
+    // if(zoomLevel >=15 && grid_bool==0){
+    //     // 如果没有添加控件
+    //     console.log(layerControl._layers[2])
+    //     if(layerControl._layers[4] == undefined){
+    //         layerControl.addOverlay(gridLayer.value, "网格图");
+    //     }
+    //     // map.value.addLayer(gridLayer.value)
+    //     // grid_bool = 1;
+    // }
+    // else{
+    //     layerControl.removeLayer(gridLayer.value);
+    //     d3.select('#gridSvg').remove()
+    //     // grid_bool = 0;
+    // }
     if(zoomLevel >=15 && map.value.hasLayer(heatmapLayer.value) && heat_bool == 0){
         heatmapLayer.value.remove()
         layerControl.removeLayer(heatmapLayer.value)
@@ -321,11 +321,11 @@ const createMap = () => {
     map.value.on('overlayadd',(e)=>{
         // console.log(e)
         if(e.name == '兴趣点层' && bankValue.value.length !== 4){
-            bankValue.value = ['中国邮政储蓄银行','中国工商银行','中国建设银行','中国农业银行','交通银行','中国银行']
+            bankValue.value = ['中国邮政储蓄银行']
             updateDotmapLayer(poiData)
         }
         if(e.name == '兴趣点层' && expressValue.value.length !== 7){
-            expressValue.value =['菜鸟','顺丰','京东','申通','圆通','中通','韵达','邮政']
+            expressValue.value =['邮政']
             updateDotmapLayer(poiData)
         }
         // if(e.name == '热力层' ){
@@ -336,9 +336,9 @@ const createMap = () => {
         if(e.name == '聚合点层'){
             createAggregationLayer()
         }
-        if(e.name == '网格图'){
-            initGridLayer(gridData)
-        }
+        // if(e.name == '网格图'){
+        //     initGridLayer(gridData)
+        // }
     })
     map.value.on('overlayremove',(e)=>{
         if(e.name == '兴趣点层'){
@@ -347,11 +347,11 @@ const createMap = () => {
             d3.select(map.value.getPanes().overlayPane).selectAll('#dotmapLayer').remove()
             d3.select(map.value.getPanes().overlayPane).selectAll('#poidotmapLayer').remove()
         }
-        if(e.name == '网格图'){
-            console.log('remove 网格')
-            //删除生成的svg
-            d3.select(map.value.getPanes().overlayPane).selectAll('#gridSvg').remove()
-        }
+        // if(e.name == '网格图'){
+        //     console.log('remove 网格')
+        //     //删除生成的svg
+        //     d3.select(map.value.getPanes().overlayPane).selectAll('#gridSvg').remove()
+        // }
         if(e.name == '热力层'){
             console.log('remove')
             heatmapLayer.value.remove()
@@ -381,167 +381,167 @@ const getFileName=()=> {
 
 }
 
-const initGridLayer = (data1) => {
+// const initGridLayer = (data1) => {
 
-    // console.log("init")
-    var data = data1;
-    var svg;
-    if(d3.select("#gridSvg").empty()) {
-        svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id", "gridSvg")
-    }else {
-        svg = d3.select("#gridSvg")
-        svg.selectAll("*").remove()
-    }
-    //svg.raise()
-    var g = svg.append("g").attr("class", "leaflet-zoom-hide");
+//     // console.log("init")
+//     var data = data1;
+//     var svg;
+//     if(d3.select("#gridSvg").empty()) {
+//         svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id", "gridSvg")
+//     }else {
+//         svg = d3.select("#gridSvg")
+//         svg.selectAll("*").remove()
+//     }
+//     //svg.raise()
+//     var g = svg.append("g").attr("class", "leaflet-zoom-hide");
 
-    var transform = d3.geoTransform({point: projectPoint}),
-    path = d3.geoPath().projection(transform);
+//     var transform = d3.geoTransform({point: projectPoint}),
+//     path = d3.geoPath().projection(transform);
     
 
-    map.value.on("zoomend", reset)
-    map.value.on("moveend", reset)
-    reset()
+//     map.value.on("zoomend", reset)
+//     map.value.on("moveend", reset)
+//     reset()
 
-    function reset() {
-        if (map.value.getZoom() < 15) {
-            g.selectAll("*").remove()
-            return;
-        }
-        // console.log("reset")
+//     function reset() {
+//         if (map.value.getZoom() < 15) {
+//             g.selectAll("*").remove()
+//             return;
+//         }
+//         // console.log("reset")
 
-        const map_bounds = map.value.getBounds() // 获取地图当前边界
-        const southWest = map_bounds.getSouthWest()
-        const northEast = map_bounds.getNorthEast()
+//         const map_bounds = map.value.getBounds() // 获取地图当前边界
+//         const southWest = map_bounds.getSouthWest()
+//         const northEast = map_bounds.getNorthEast()
         
-        const latStart = southWest.lat   //西南
-        const latEnd = northEast.lat   //东北
-        const lonStart = southWest.lng
-        const lonEnd = northEast.lng
+//         const latStart = southWest.lat   //西南
+//         const latEnd = northEast.lat   //东北
+//         const lonStart = southWest.lng
+//         const lonEnd = northEast.lng
 
-        // const grid_size = 1000
-        const grid_width = 0.008983111749910169
-        const grid_height = 0.010391927140799718
+//         // const grid_size = 1000
+//         const grid_width = 0.008983111749910169
+//         const grid_height = 0.010391927140799718
 
-        // var simple_data = JSON.parse(grid_data).filter(item => item.longitude >= lonStart-grid_width && item.longitude <= lonEnd+grid_width && item.latitude >= latStart-grid_height && item.latitude <= latEnd+grid_height)
+//         // var simple_data = JSON.parse(grid_data).filter(item => item.longitude >= lonStart-grid_width && item.longitude <= lonEnd+grid_width && item.latitude >= latStart-grid_height && item.latitude <= latEnd+grid_height)
 
-        console.log("lonStart-grid_width")
-        console.log(lonStart-grid_width)
-        console.log(lonEnd+grid_width)
-        var simple_geo_data = data.features.filter(item => item.geometry.coordinates[0][0][0] >= lonStart-grid_width && item.geometry.coordinates[0][0][0] <= lonEnd+grid_width && item.geometry.coordinates[0][0][1] >= latStart-grid_height && item.geometry.coordinates[0][0][1] <= latEnd+grid_height)
+//         console.log("lonStart-grid_width")
+//         console.log(lonStart-grid_width)
+//         console.log(lonEnd+grid_width)
+//         var simple_geo_data = data.features.filter(item => item.geometry.coordinates[0][0][0] >= lonStart-grid_width && item.geometry.coordinates[0][0][0] <= lonEnd+grid_width && item.geometry.coordinates[0][0][1] >= latStart-grid_height && item.geometry.coordinates[0][0][1] <= latEnd+grid_height)
 
-        console.log("simple"+simple_geo_data.length)
-        var bounds = path.bounds({type: "FeatureCollection", features: simple_geo_data}),
-        topLeft = bounds[0],
-        bottomRight = bounds[1];
+//         console.log("simple"+simple_geo_data.length)
+//         var bounds = path.bounds({type: "FeatureCollection", features: simple_geo_data}),
+//         topLeft = bounds[0],
+//         bottomRight = bounds[1];
 
-        var width = bottomRight[0] - topLeft[0]
-        var height = bottomRight[1] - topLeft[1]
+//         var width = bottomRight[0] - topLeft[0]
+//         var height = bottomRight[1] - topLeft[1]
 
-        // 检查是否有无效值
-        if (!isFinite(width) || !isFinite(height)) {
-            console.error("Invalid bounds:", bounds)
-            return
-        }
+//         // 检查是否有无效值
+//         if (!isFinite(width) || !isFinite(height)) {
+//             console.error("Invalid bounds:", bounds)
+//             return
+//         }
 
-        svg.attr("width", width)
-            .attr("height", height)
-            .style("left", topLeft[0] + "px")
-            .style("top", topLeft[1] + "px");
+//         svg.attr("width", width)
+//             .attr("height", height)
+//             .style("left", topLeft[0] + "px")
+//             .style("top", topLeft[1] + "px");
 
-        // console.log("width"+width)
-        // console.log("height"+height)
+//         // console.log("width"+width)
+//         // console.log("height"+height)
 
-        g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
+//         g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")");
 
-        g.selectAll("*").remove()
+//         g.selectAll("*").remove()
 
-        var feature = g.selectAll("rect")
-            .data(simple_geo_data)
-            .enter()
-            .append("rect")
-            .attr('id',d=>{
-                return `grid-${d.properties.id}`
-            })
-            .attr("x", d=>{
-                var point = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
-                return point.x;
-            })
-            .attr("y", d=>{
-                var y = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0])).y;
-                return y;
-            })
-            .attr("width", d=>{
-                var point1 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][0][1],d.geometry.coordinates[0][0][0]));
-                var point2 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
-                return Math.abs(point1.x-point2.x);
-            })
-            .attr("height", d=>{
-                var point1 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][0][1],d.geometry.coordinates[0][0][0]));
-                var point2 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
-                return Math.abs(point1.y-point2.y)
+//         var feature = g.selectAll("rect")
+//             .data(simple_geo_data)
+//             .enter()
+//             .append("rect")
+//             .attr('id',d=>{
+//                 return `grid-${d.properties.id}`
+//             })
+//             .attr("x", d=>{
+//                 var point = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
+//                 return point.x;
+//             })
+//             .attr("y", d=>{
+//                 var y = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0])).y;
+//                 return y;
+//             })
+//             .attr("width", d=>{
+//                 var point1 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][0][1],d.geometry.coordinates[0][0][0]));
+//                 var point2 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
+//                 return Math.abs(point1.x-point2.x);
+//             })
+//             .attr("height", d=>{
+//                 var point1 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][0][1],d.geometry.coordinates[0][0][0]));
+//                 var point2 = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[0][2][1],d.geometry.coordinates[0][2][0]));
+//                 return Math.abs(point1.y-point2.y)
                 
-            })
-            // .attr("fill", "blue")
-            .attr("fill-opacity", 0.05)
-            .attr("stroke",d => {
-                return "#737373"
-            })
-            .attr("stroke-width", 1)
-            //.attr('pointer-events','all')
-            .on("click", function(e, d){
-                console.log(d)
-                const gridStore = useGridSelectorStore();
-                var point1 = d.geometry.coordinates[0][0];
-                var point2 = d.geometry.coordinates[0][2];
-                // Math.min(point1[1],point2[1])==latStart && Math.min(point1[0],point2[0])==lonStart
+//             })
+//             // .attr("fill", "blue")
+//             .attr("fill-opacity", 0.05)
+//             .attr("stroke",d => {
+//                 return "#737373"
+//             })
+//             .attr("stroke-width", 1)
+//             //.attr('pointer-events','all')
+//             .on("click", function(e, d){
+//                 console.log(d)
+//                 const gridStore = useGridSelectorStore();
+//                 var point1 = d.geometry.coordinates[0][0];
+//                 var point2 = d.geometry.coordinates[0][2];
+//                 // Math.min(point1[1],point2[1])==latStart && Math.min(point1[0],point2[0])==lonStart
 
-                if (gridStore.findGrid(d.id)) {
-                    removeHightlight(this);
-                } else {
-                    addHightlight(this);
-                }
-                gridStore.selectGrid(d.id, point1, point2);
-                // if(!selected.value){
-                //     addHightlight(this)
-                //     selected.value = true;
-                //     gridStore.selectGrid(d.properties.id, point1, point2)
-                //     console.log("properties",gridStore.bound)
-                //     selectedGrid = this
-                //     //console.log(gridStore.bound)
-                // } else if(selectedGrid == this) {
-                //     selected.value = false;
-                //     removeHightlight(this)
-                //     gridStore.cancelGrid()
-                // } else {
-                //     gridStore.selectGrid(d.properties.id, point1, point2);
-                //     addHightlight(this)
-                //     removeHightlight(selectedGrid)
-                //     selectedGrid = this
-                // }
+//                 if (gridStore.findGrid(d.id)) {
+//                     removeHightlight(this);
+//                 } else {
+//                     addHightlight(this);
+//                 }
+//                 gridStore.selectGrid(d.id, point1, point2);
+//                 // if(!selected.value){
+//                 //     addHightlight(this)
+//                 //     selected.value = true;
+//                 //     gridStore.selectGrid(d.properties.id, point1, point2)
+//                 //     console.log("properties",gridStore.bound)
+//                 //     selectedGrid = this
+//                 //     //console.log(gridStore.bound)
+//                 // } else if(selectedGrid == this) {
+//                 //     selected.value = false;
+//                 //     removeHightlight(this)
+//                 //     gridStore.cancelGrid()
+//                 // } else {
+//                 //     gridStore.selectGrid(d.properties.id, point1, point2);
+//                 //     addHightlight(this)
+//                 //     removeHightlight(selectedGrid)
+//                 //     selectedGrid = this
+//                 // }
                 
-            });
+//             });
             
-    }
+//     }
 
-    function addHightlight(grid) {
-        d3.select(grid).raise();
-        d3.select(grid)
-            .attr("stroke", "red")
-            .attr("stroke-width", 2)
-    }
+//     function addHightlight(grid) {
+//         d3.select(grid).raise();
+//         d3.select(grid)
+//             .attr("stroke", "red")
+//             .attr("stroke-width", 2)
+//     }
 
-    function removeHightlight(grid) {
-        d3.select(grid)
-            .attr("stroke", "#737373")
-            .attr("stroke-width", 1)
-    }
+//     function removeHightlight(grid) {
+//         d3.select(grid)
+//             .attr("stroke", "#737373")
+//             .attr("stroke-width", 1)
+//     }
 
-    function projectPoint(x, y) {
-        const point = map.value.latLngToLayerPoint(new L.LatLng(y, x))
-        this.stream.point(point.x, point.y)
-    }
-}
+//     function projectPoint(x, y) {
+//         const point = map.value.latLngToLayerPoint(new L.LatLng(y, x))
+//         this.stream.point(point.x, point.y)
+//     }
+// }
 
 const initDotmapLayer = (data) => {
     const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","dotmapLayer")
@@ -920,6 +920,10 @@ const createPoiDataDotMap = (data) => {
     // 清理旧图层和事件监听
     d3.select(map.value.getPanes().overlayPane).selectAll('#poidotmapLayer').remove();
     const svg = d3.select(map.value.getPanes().overlayPane).append("svg").attr("id","poidotmapLayer")
+
+    // 禁用整个 svg 背景的交互
+    // svg.style("pointer-events", "none");  // 禁用整个 svg 的交互
+
     const g = svg.append("g").attr("class", "leaflet-zoom-hide")
     const transform = d3.geoTransform({point: projectPoint})
     const path = d3.geoPath().projection(transform)
@@ -932,13 +936,19 @@ const createPoiDataDotMap = (data) => {
         .enter()
         .append("g")
         .attr("id","dot")
-
-    // 绘制外圆环
+    
+        // 绘制外圆环
     feature.append("circle")
+    .attr("class", "interactive-dot") // 添加专用类名
     .attr("r", d => map.value.getZoom() < 14 ? 2 : 4)
     .attr("fill", "none")
     .attr("stroke", "red")
     .attr("stroke-width", d => map.value.getZoom() < 14 ? 1 : 3);
+
+    d3.select("#poidotmapLayer")
+    .style("pointer-events", "none") // 禁用整个容器
+    .selectAll(".interactive-dot") // 精确选择内圆
+    .style("pointer-events", "auto"); // 仅允许内圆交互
 
     // 绘制内圆
     feature.append("circle")
@@ -1066,7 +1076,7 @@ watch(city, (newCity) => {
     if(map.value.hasLayer(dotmapLayer.value)){
         updateDotmapLayer(poiData)
     }
-    initGridLayer(gridData)
+    //initGridLayer(gridData)
     controlGridLayer()
   }
 })
@@ -1227,13 +1237,13 @@ onMounted(()=>{
                 </el-radio-group>
             </div>
             <div class="controlbar-content" v-show="dataSourceFlag">
-                <span style="font-weight: bold;margin-right:10px">银行筛选</span>
+                <span style="font-weight: bold;margin-right:10px">筛选</span>
                 <el-select v-model="bankValue" multiple collapse-tags  style="width: 70%;"  placeholder="请选择">
                     <el-option v-for="(color,type) in dotColors" :key="type" :label="type" :value="type"></el-option>
                 </el-select>
             </div>
             <div class="controlbar-content" v-show="!dataSourceFlag">
-                <span style="font-weight: bold;margin-right:10px">物流筛选</span>
+                <span style="font-weight: bold;margin-right:10px">筛选</span>
                 <el-select v-model="expressValue" multiple collapse-tags style="width: 70%;" placeholder="请选择" >
                     <el-option v-for="(color,type) in expressDotColors" :key="type" :label="type" :value="type"></el-option>
                 </el-select>

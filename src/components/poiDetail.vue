@@ -101,6 +101,10 @@ const options = [
     {
         label:'汽车服务',
         value:'汽车服务'
+    },
+    {
+        label:'商务住宅',
+        value:'商务住宅'
     }
 ]
 

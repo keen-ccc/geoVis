@@ -189,7 +189,7 @@ const createRadar = (selectedGridIDs = []) => {
         // 初始化时根据选中状态设置样式
         if (selectedGridIDs.includes(d.gridID)) {
             path.style("stroke", "#7EA8CB")
-                .style("stroke-width", 4);
+                .style("stroke-width", 2);
         }
         path.on('click', function() {
             // 根据 ID 查找 data
@@ -518,7 +518,7 @@ watch(
 
         <div ref="radar" class="radarChart"></div>
         <div id="bottomDiv">
-            <div id="lineDetail">
+            <!-- <div id="lineDetail">
                 <div  class="valueTable">
                     <div class="valueItem">
                         <span>人口密度：</span>
@@ -537,7 +537,7 @@ watch(
                         <p>{{lastItemValue[3]}}</p>
                     </div>
                 </div>
-            </div>
+            </div> -->
             <div ref="weight" class="weight">
                 <div class="sliderContainer">
                     <span class="weightspan">人口密度</span>
@@ -555,10 +555,10 @@ watch(
                     <span class="weightspan">POI多样性</span>
                     <el-slider v-model="poiDiversityWeight" :min="0" :max="1"  :step="0.1"  height="6rem" vertical="true"></el-slider>
                 </div>
-                <div class="buttonContainer">
-                    <el-button color="#ecf5ff" type="primary" @click="calulateScore">计算</el-button>
-                    <el-button color="#ecf5ff" type="primary" @click="reset" style="margin-left:0;margin-top:2rem">重置</el-button>
-                </div>
+            </div>
+            <div class="buttonContainer">
+                <el-button color="#ecf5ff" type="primary" @click="calulateScore">计算</el-button>
+                <el-button color="#ecf5ff" type="primary" @click="reset" style="margin-left:0;margin-top:2rem">重置</el-button>
             </div>
         </div>
     </div>
@@ -585,9 +585,9 @@ watch(
     height:40%;
     width:100%;
     display:flex;
-    flex-direction: row;
+    /* flex-direction: row; */
     align-items: center;
-    justify-content: space-around;
+    /* justify-content: space-around; */
 }
 #lineDetail{
     height: 100%;
@@ -613,11 +613,11 @@ watch(
 }
 .weight{
     height: 100%;
-    width: 75%;
+    width: 100%;
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: center;
+    justify-content: right;
 }
 .sliderContainer{
     height: 100%;
