@@ -1,6 +1,10 @@
 <template>
     <div class="area-control">
-        <p style="font-size: 16px;font-weight:bold;margin:0.2rem">范围选择</p>
+        <div style="display:flex;width:100%">
+            <div class="title-bar"></div>
+            <p style="font-size: 16px;font-weight:bold;margin:0.2rem;">范围选择</p>
+        </div>
+
         <div style="margin-top:1rem;margin-left: 1rem;">
             <p style="font-weight: 600;">选择网点</p>
         </div>
@@ -32,7 +36,7 @@
                     </text>
                 </svg>
                 <div class="sliderRange">
-                    <el-slider v-model="length" :min="min" :max="max" :step="100":formatter="formatValue"></el-slider>
+                    <el-slider v-model="length" :min="min" :max="max" :step="200":formatter="formatValue"></el-slider>
                 </div>
             </div>
 
@@ -94,6 +98,12 @@ watch(gridLength, (value) => {
 </script>
 
 <style scoped>
+.title-bar{
+    height:22px;
+    width:8px;
+    background-color: rgb(54, 54, 54);
+    margin:4px 0 0 4px;
+}
 .net-select{
     display: flex;
     margin: 0 auto;

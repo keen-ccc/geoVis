@@ -13,8 +13,8 @@
 
     <el-table
       :data="filterTableData"
-      style="width: 95%;"
-      max-height="400"
+      style="width: 98%;"
+      max-height="450"
       :row-class-name="tableRowClassName"
     >
       <el-table-column prop="name" label="名称"  />
@@ -64,12 +64,12 @@ const fetchData = async (bound) => {
   try {
     // 获取树数据
     const [treeResponse, tableResponse] = await Promise.all([
-      fetch('http://localhost:5000/api/getIndustry', {
+      fetch('/api/getIndustry', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params)
       }),
-      fetch('http://localhost:5000/api/getIndustryDetail', {
+      fetch('/api/getIndustryDetail', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params)

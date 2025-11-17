@@ -7,6 +7,10 @@ export const useGridSelectorStore = defineStore('gridSelector', {
     return { 
       num:0,
       grids: new Map(),
+      boundswest: 0,
+      boundseast: 0,
+      boundsnorth: 0,
+      boundssouth: 0,
     }
   },
   // 也可以这样定义
@@ -27,7 +31,13 @@ export const useGridSelectorStore = defineStore('gridSelector', {
     clearGrid() {
       this.grids = new Map();
       this.num = 0;
-    }
+    },
+    setBounds(west, east, north, south) {
+      this.boundswest = west;
+      this.boundseast = east;
+      this.boundsnorth = north;
+      this.boundssouth = south;
+    },
     // cancelGrid() {
     //     this.gridID = -1;
     //     this.bound = {

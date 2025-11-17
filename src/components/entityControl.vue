@@ -1,6 +1,10 @@
 <template>
     <div class="entity-control">
-        <p style="font-size: 16px;font-weight:bold;margin:0.2rem">主体标签筛选</p>
+        <div style="display:flex;width:100%">
+            <div class="title-bar"></div>
+            <p style="font-size: 16px;font-weight:bold;margin:0.2rem">数据筛选</p>
+        </div>
+
         <div>
             <div style="margin-top:1rem;margin-left: 0.5rem;">
                 <p style="font-weight: 600;">邮政业务</p>
@@ -28,7 +32,7 @@
                 <p style="font-weight: 600;">主体字段</p>
             </div>
             <div>
-                <p class="label-title">注册时间</p>
+                <p class="label-title">成立日期</p>
                 <div class="label-content">
                   <el-date-picker
                     v-model="value1"
@@ -38,10 +42,10 @@
                     end-placeholder="End date"
                   />
                 </div>
-                <p class="label-title">法人信息</p>
+                <!-- <p class="label-title">法人信息</p>
                 <div class="label-content">
                   <el-input v-model="farenInput" placeholder="请输入法人信息"  style="width: 95%;"></el-input>
-                </div>
+                </div> -->
             </div>
         </div>
         <div class="confirm-button">
@@ -58,6 +62,12 @@ const value1 = ref('')
 const farenInput = ref('')
 </script>
 <style scoped>
+.title-bar{
+    height:22px;
+    width:8px;
+    background-color: rgb(54, 54, 54);
+    margin:4px 0 0 4px;
+}
 .label-title{
     /* font-weight: 600; */
     margin-left: 0.5rem;

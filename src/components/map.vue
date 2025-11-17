@@ -62,7 +62,7 @@ var selectedGrid = null
 var selectedNet = null
 const map =ref(null)
 const city = ref('成都市')
-const bankValue = ref(['中国邮政储蓄银行'])
+const bankValue = ref(['中国邮政'])
 const expressValue = ref(['邮政'])
 const dataSource = ref('bank')
 const pathStore = pathGridStore()
@@ -77,10 +77,6 @@ const headings = [
     {
         key:1,
         value:'tab1'
-    },
-    {
-        key:2,
-        value:'tab2'
     }
 ]
 const props1 = {
@@ -261,7 +257,7 @@ const addComparison = async () => {
         end_lat:bound.value.latEnd,
     }
     // start_lon,start_lat,end_lon,end_lat,populationWeight,housePriceWeight,poiDensityWeight,poiDiversityWeight
-    const res = await fetch('http://localhost:5000/api/cal_poiNum', {
+    const res = await fetch('/api/cal_poiNum', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json'
@@ -321,7 +317,7 @@ const createMap = () => {
     map.value.on('overlayadd',(e)=>{
         // console.log(e)
         if(e.name == '兴趣点层' && bankValue.value.length !== 4){
-            bankValue.value = ['中国邮政储蓄银行']
+            bankValue.value = ['中国邮政']
             updateDotmapLayer(poiData)
         }
         if(e.name == '兴趣点层' && expressValue.value.length !== 7){
@@ -360,6 +356,27 @@ const createMap = () => {
             aggregationLayer.value.clearLayers()
         }
     })
+    map.value.on('dragstart', () => {
+    if (gridLayer.value) {
+        const overlayPane = map.value.getPanes().overlayPane;
+        
+        // 禁用所有 rect 元素的 pointer-events
+        d3.select(overlayPane).selectAll('.net-grid-cell').style('pointer-events', 'none');
+    }
+});
+
+map.value.on('dragend', () => {
+    if (gridLayer.value) {
+        const overlayPane = map.value.getPanes().overlayPane;
+        
+        // 恢复所有 rect 元素的 pointer-events
+        d3.select(overlayPane).selectAll('.net-grid-cell').style('pointer-events', 'all');
+    }
+});
+
+
+
+
 }
 
 // var map_bounds 
@@ -579,6 +596,8 @@ const initDotmapLayer = (data) => {
                     return getDotColors('中国银行')
                 } else if(d.properties.type.includes('邮政')){
                     return getDotColors('中国邮政')
+                } else if(d.properties.type.includes('农村商业')){
+                    return getDotColors('农村商业银行')
                 }
                 else{
                     // 不显示
@@ -732,7 +751,10 @@ const generateGrid = (lat,lon) => {
         west: numericLon - (extendedRange / 2) / (40075000 * Math.cos(numericLat * Math.PI / 180) / 360)
     };
     console.log(bounds)
-
+    const gridStore = useGridSelectorStore();
+    console.log("gridStore",gridStore.boundswest,gridStore.boundseast,gridStore.boundsnorth,gridStore.boundssouth)
+    gridStore.setBounds(bounds.west,bounds.east,bounds.north,bounds.south)
+    console.log("bounds",gridStore.boundswest,gridStore.boundseast,gridStore.boundsnorth,gridStore.boundssouth)
     const latStep = gridSize / 111320
     const lonStep = gridSize / (40075000 * Math.cos(numericLat * Math.PI / 180) / 360)
 
@@ -824,8 +846,8 @@ const generateGrid = (lat,lon) => {
     function addHightlight(grid) {
         d3.select(grid).raise();
         d3.select(grid)
-            .attr("stroke", "red")
-            .attr("stroke-width", 2)
+            .attr("stroke", "#4680B0")
+            .attr("stroke-width", 3)
     }
     function removeHightlight(grid) {
         d3.select(grid)
@@ -940,9 +962,9 @@ const createPoiDataDotMap = (data) => {
         // 绘制外圆环
     feature.append("circle")
     .attr("class", "interactive-dot") // 添加专用类名
-    .attr("r", d => map.value.getZoom() < 14 ? 2 : 4)
+    .attr("r", d => map.value.getZoom() < 14 ? 1 : 4)
     .attr("fill", "none")
-    .attr("stroke", "red")
+    .attr("stroke", "#568DBA")
     .attr("stroke-width", d => map.value.getZoom() < 14 ? 1 : 3);
 
     d3.select("#poidotmapLayer")
@@ -969,7 +991,7 @@ const createPoiDataDotMap = (data) => {
             d3.select('#circle-tooltip').style('left', `${mouseX}px`).style('top', `${mouseY}px`);
         })
         .on('mouseout', function (e, d) {
-            d3.select(this).select("circle").attr('stroke', 'red').attr('stroke-width', 3);
+            d3.select(this).select("circle").attr('stroke', '#568DBA').attr('stroke-width', 3);
             d3.select('#circle-tooltip').style('display', 'none');
         });
 
@@ -1019,7 +1041,7 @@ const createPoiDataDotMap = (data) => {
 
 const createAggregationLayer = () => {
     //console.log("createTestLayer")
-    var markers = L.markerClusterGroup({chunkedLoading:true})
+    var markers = L.markerClusterGroup({chunkedLoading:false})
     // 过滤掉无效的数据点
     const validPoiData = poiData.filter(d => d && d.lat != null && d.lon != null)
     // 添加有效的数据点到 markers
@@ -1040,11 +1062,11 @@ watch(pathID,()=>{
     selectedGridIDs.forEach(gridID => {
         d3.select(`#grid-${gridID}`)
             .raise()       
-            .attr("stroke", "red")
+            .attr("stroke", "#4680B0")
             .attr("stroke-width", 2)
         d3.select(`#netgrid-${gridID}`)
             .raise()       
-            .attr("stroke", "red")
+            .attr("stroke", "#4680B0")
             .attr("stroke-width", 2)
     });
 
@@ -1164,7 +1186,7 @@ watch(
 );
 
 const getPoiMax = async () => {
-    const response = await fetch('http://localhost:5000/api/get_poiNum', {
+    const response = await fetch('/api/get_poiNum', {
         method: 'GET',
         headers: {
             'Content-Type': 'application/json'
@@ -1191,14 +1213,14 @@ onMounted(()=>{
         return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
     })
 
-    d3.json('/grid_1000.geojson').then(function(data) {
-        // 处理加载的数据
-        // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
-        gridData = data
-        // initGridLayer(gridData)
-    }).catch(function(error) {
-        console.error("Error loading the GeoJSON file:", error);
-    });
+    // d3.json('/grid_1000.geojson').then(function(data) {
+    //     // 处理加载的数据
+    //     // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
+    //     gridData = data
+    //     // initGridLayer(gridData)
+    // }).catch(function(error) {
+    //     console.error("Error loading the GeoJSON file:", error);
+    // });
 
     // gridData = JSON.parse(grid_data)
     heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 30, blur:20, maxZoom: 14,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#A1EE7E', 0.7: '#FAC57E', 0.9: '#EE9C82'}})
@@ -1219,7 +1241,7 @@ onMounted(()=>{
 </script>
 
 <template>
-    <div style="height: 100%;">
+    <div style="height: 99%;">
         <div class="controlBar">
             <div class="controlbar-content">
                 <span style="font-weight: bold;margin-right:10px">城市选择</span>
@@ -1248,9 +1270,9 @@ onMounted(()=>{
                     <el-option v-for="(color,type) in expressDotColors" :key="type" :label="type" :value="type"></el-option>
                 </el-select>
             </div>
-            <div class="controlbar-content">
+            <!-- <div class="controlbar-content">
                 <el-button :disabled="!selected" @click="addComparison">+比较</el-button>
-            </div>
+            </div> -->
             <div class="controlbar-content">
                 <el-button  @click="clearGrid">-清除</el-button>
             </div>
@@ -1261,58 +1283,11 @@ onMounted(()=>{
                 地址：<span id="tooltip-address"></span>
             </div>
             <l-sidepanel id="rightPanel" :headings tabsPosition="top" position="right">
+
                 <template #[`heading.1`]>
-                    网格比较
-                </template>
-                <l-sidepanel-tab id="panel1" link="1">
-                    <!-- <img :src="picPath"> -->
-                    <div v-for="(card, index) in comparisonCards" :key="index" class="card">
-                        <div>
-                            <h3>{{ card.grid }}</h3>
-                            <!-- <img :src="card.imgUrl"  alt="Card Image"/>
-                            <p>{{ card.imgUrl }}</p> -->
-                            <p style="margin: 0;">餐饮</p>
-                            <div class="progress">
-                                <el-progress :percentage="card.canyin/poiMax*100" :show-text="false">
-                                    <!-- <el-button text>content</el-button> -->
-                                </el-progress>
-                                <p style="text-align: center; margin: 0;">{{ card.canyin }}</p>
-                            </div>
-                            
-                            <p style="margin: 0;">企业</p>
-                            <div class="progress">
-                                <el-progress :percentage="card.company/poiMax*100" :show-text="false"/>
-                                <p style="text-align: center; margin: 0;">{{ card.company }}</p>
-                            </div>
-                            
-                            <p style="margin: 0;">商场</p>
-                            <div class="progress">
-                                <el-progress :percentage="card.mall/poiMax*100" :show-text="false"/>
-                                <p style="text-align: center; margin: 0;">{{ card.mall }}</p>
-                            </div>
-                            
-                            <p style="margin: 0;">银行</p>
-                            <div class="progress">
-                                <el-progress :percentage="card.bank/poiMax*100" :show-text="false"/>
-                                <p style="text-align: center; margin: 0;">{{ card.bank }}</p>
-                            </div>
-                            
-                            <p style="margin: 0;">物流</p>
-                            <div class="progress">
-                                <el-progress :percentage="card.express/poiMax*100" :show-text="false"/>
-                                <p style="text-align: center; margin: 0;">{{ card.express }}</p>
-                            </div>
-                            
-                        </div>
-                        <div class="button">
-                            <el-button size="small" :icon="Delete" circle @click="deleteComparison(index)"/>
-                        </div>
-                    </div>
-                </l-sidepanel-tab>
-                <template #[`heading.2`]>
                     市场经营主体分析
                 </template>
-                <l-sidepanel-tab link="2">
+                <l-sidepanel-tab link="1">
                     <detailTable></detailTable>
                 </l-sidepanel-tab>
             </l-sidepanel>

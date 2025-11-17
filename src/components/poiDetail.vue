@@ -24,7 +24,7 @@ const fetchData = async(bound) => {
         type:selection.value
     }
     //console.log(params)
-    const res = await fetch('http://localhost:5000/api/getPOIDetail',{
+    const res = await fetch('/api/getPOIDetail',{
         method:'POST',
         headers:{
             'Content-Type':'application/json'
@@ -185,10 +185,14 @@ watch(
 
 <template>
     <div style="overflow: hidden;">
-        <p style="font-size: 16px;font-weight:bold;margin:0.5rem">POI 目录</p>
+        <div style="display:flex;width:100%">
+            <div class="title-bar"></div>
+            <p style="font-size: 16px;font-weight:bold;margin:0.2rem">商业兴趣点列表</p>
+        </div>
+
         <div id="poiDetail">
             <div id="poiFilter">
-                <p style="font-weight: bold;">按行业查询：</p>
+                <p style="font-weight: bold;">行业查询</p>
                 <el-select v-model="selection" style="width: 65%;" @change="checkoutSelection">
                     <el-option v-for="option in options" :key="option.label" :value="option.value" :label="option.label" ></el-option>
                 </el-select>
@@ -212,6 +216,12 @@ watch(
 </template>
 
 <style scoped>
+.title-bar{
+    height:22px;
+    width:8px;
+    background-color: rgb(54, 54, 54);
+    margin:4px 0 0 4px;
+}
 #poiDetail{
     height:100%;
     width:100%;

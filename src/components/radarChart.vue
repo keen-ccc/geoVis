@@ -77,7 +77,7 @@ const fetchData = async (bound) => {
     }
     console.log("gridSize:", params.gridSize);
     try {
-        const res = await fetch('http://localhost:5000/api/cal_score', {
+        const res = await fetch('/api/cal_score', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(params)
@@ -96,7 +96,7 @@ const fetchData = async (bound) => {
 const createRadar = (selectedGridIDs = []) => {
     d3.select(radar.value).selectAll('*').remove()
 
-    const svgHeight = radar.value.clientHeight
+    const svgHeight = radar.value.clientHeight                                                                                                      
     const svgWidth = radar.value.clientWidth
     const svg = d3.select(radar.value)
         .append('svg')
@@ -183,9 +183,9 @@ const createRadar = (selectedGridIDs = []) => {
         })
         .attr("class", "radarPath")
         .style("fill", "none")
-        .style("stroke", "#737373") // 初始为灰色
-        .style("stroke-width", 2)
-        .style('stroke-opacity', 0.8)
+        // .style("stroke", "#737373") // 初始为灰色
+        .style("stroke-width",2)
+        .style('stroke-opacity', 1)
         // 初始化时根据选中状态设置样式
         if (selectedGridIDs.includes(d.gridID)) {
             path.style("stroke", "#7EA8CB")
@@ -203,14 +203,14 @@ const createRadar = (selectedGridIDs = []) => {
             
             // 重置所有路径的颜色为灰色
             svg.selectAll('path')
-                .style('stroke', '#737373')
+                .style('stroke', '#7EA8CB')
                 .style('stroke-width', 2);
 
             // 判断当前点击路径是否已经选中（即是否是灰色）
-            if (d3.select(this).style('stroke') === 'rgb(115, 115, 115)') {
+            if (d3.select(this).style('stroke') === 'rgb(126, 168, 203)') {
                 console.log('change color');
                 // 如果是灰色，变成蓝色
-                d3.select(this).style('stroke', '#7EA8CB').style('stroke-width', 4);
+                d3.select(this).style('stroke', '#7EA8CB').style('stroke-width', 4.5);
             }
 
             // 清除之前的 arc 和文本
@@ -227,7 +227,7 @@ const createRadar = (selectedGridIDs = []) => {
             svg.append('path')
                 .attr('class', 'arcFill')
                 .attr('d', arc)
-                .attr('fill', '#1d7bd1');
+                .attr('fill', '#7EA8CB');
 
             // 小圆区域添加文本
             svg.append('text')
@@ -510,7 +510,11 @@ watch(
 </script>
 
 <template>
-    <p style="font-size: 16px;font-weight:bold;margin:0.2rem">网格商业化水平详情</p>
+        <div style="display:flex;width:100%">
+            <div class="title-bar"></div>
+            <p style="font-size: 16px;font-weight:bold;margin:0.2rem">网格商业化水平详情</p>
+        </div>
+
     <div id="container">
         <!-- <div style="display: flex;justify-content:flex-end;width:95%">
              <el-button color="#ecf5ff" type="primary" @click="clearChart">清除</el-button>
@@ -570,6 +574,12 @@ watch(
     width:100%;
     display: flex;
     flex-direction: column;
+}
+.title-bar{
+    height:22px;
+    width:8px;
+    background-color: rgb(54, 54, 54);
+    margin:4px 0 0 4px;
 }
 .clearButton{
     width:10%;
