@@ -1062,12 +1062,12 @@ watch(pathID,()=>{
     selectedGridIDs.forEach(gridID => {
         d3.select(`#grid-${gridID}`)
             .raise()       
-            .attr("stroke", "#4680B0")
-            .attr("stroke-width", 2)
+            .attr("stroke", "#ee848a")
+            .attr("stroke-width", 3)
         d3.select(`#netgrid-${gridID}`)
             .raise()       
-            .attr("stroke", "#4680B0")
-            .attr("stroke-width", 2)
+            .attr("stroke", "#ee848a")
+            .attr("stroke-width", 3)
     });
 
     // 根据pathID高亮rect
