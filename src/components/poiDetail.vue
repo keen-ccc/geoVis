@@ -7,21 +7,21 @@ import { storeToRefs } from 'pinia'
 
 const poiData = ref([])
 const poiFilter = ref(null)
-const selection = ref('银行')
+const selection = ref(['银行'])
 const gridStore = useGridSelectorStore()
 const poiStore = usePoiDetailStore()
 const { num } = storeToRefs(gridStore)
 
 //const num = computed(() => gridStore.num)
 
-const fetchData = async(bound) => {
+const fetchData = async(bound,selectedIndustries) => {
     //console.log("fetch poi data",bound)
     const params = {
         start_lon:bound.lonStart,
         start_lat:bound.latStart,
         end_lon:bound.lonEnd,
         end_lat:bound.latEnd,
-        type:selection.value
+        types:selectedIndustries
     }
     //console.log(params)
     const res = await fetch('/api/getPOIDetail',{
@@ -134,7 +134,7 @@ const checkoutSelection = async (value) => {
   
   // 启动所有异步请求
   for (const bound of grids.values()) {
-    promises.push(fetchData(bound));
+    promises.push(fetchData(bound,selection.value));
   }
   
   // 等待所有请求完成
@@ -155,7 +155,7 @@ watch(
       const promises = [];
 
       for (const bound of grids.values()) {
-        promises.push(fetchData(bound));
+        promises.push(fetchData(bound,selection.value));
       }
 
       // 等待所有数据加载完成
@@ -193,7 +193,7 @@ watch(
         <div id="poiDetail">
             <div id="poiFilter">
                 <p style="font-weight: bold;">行业查询</p>
-                <el-select v-model="selection" style="width: 65%;" @change="checkoutSelection">
+                <el-select v-model="selection" style="width: 65%;" multiple :multiple-limit="2" @change="checkoutSelection">
                     <el-option v-for="option in options" :key="option.label" :value="option.value" :label="option.label" ></el-option>
                 </el-select>
                 <el-button color="#ecf5ff" type="primary" @click="exportTable" style="margin-left: 1rem">导出</el-button>

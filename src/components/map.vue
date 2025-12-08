@@ -160,6 +160,7 @@ function transformLng(lng, lat) {
 // }
 const controlGridLayer = () => {
     var zoomLevel = map.value.getZoom();
+    console.log("zoomLevel",zoomLevel)
     // if (zoomLevel < 15 && grid_bool == 1) {
     //     // 在缩放级别小于15时，移除图层控制器中的 Layer 3
     //     layerControl.removeLayer(gridLayer.value);
@@ -1175,15 +1176,118 @@ watch(dataSource,(newdataSource)=>{
     }
 })
 
+// watch(
+//   () => poiStore.poiIndustryData,
+//   (newPoiData) => {
+//     console.log("newPoiData length",newPoiData.length)
+//     if (newPoiData.length > 0) {
+//       createPoiDataDotMap(newPoiData);
+//     }
+//   }
+// );
+// 维护颜色分配状态，放在 watch 外部以保持持久性
+const colorAssignments = ref({})
+const colorPalette = ['#3070CC', '#CB1C45']
 watch(
   () => poiStore.poiIndustryData,
-  (newPoiData) => {
-    console.log("newPoiData length",newPoiData.length)
-    if (newPoiData.length > 0) {
-      createPoiDataDotMap(newPoiData);
+  (newVal) => {
+    // 移除旧的散点图层
+    d3.select("#poiDotsLayer").remove();
+
+    if (!newVal || newVal.length === 0) {
+        colorAssignments.value = {}; // 数据清空时重置
+        return;
     }
-  }
-);
+
+    // 获取当前数据中包含的所有唯一行业类型
+    const uniqueTypes = [...new Set(newVal.map(d => d.type))];
+    
+    // 1. 清理：移除不再存在的行业的颜色分配
+    for (const type in colorAssignments.value) {
+        if (!uniqueTypes.includes(type)) {
+            delete colorAssignments.value[type];
+        }
+    }
+
+    // 2. 分配：为新出现的行业分配剩余颜色
+    uniqueTypes.forEach(type => {
+        if (!colorAssignments.value[type]) {
+            // 获取当前已使用的颜色
+            const usedColors = Object.values(colorAssignments.value);
+            // 找到第一个未使用的颜色
+            const availableColor = colorPalette.find(c => !usedColors.includes(c));
+            // 如果有可用颜色则分配，否则默认使用第一个颜色
+            colorAssignments.value[type] = availableColor || colorPalette[0];
+        }
+    });
+
+    const svg = d3.select(map.value.getPanes().overlayPane).append("svg")
+        .attr("id", "poiDotsLayer")
+        .attr("class", "leaflet-zoom-hide")
+        .style("pointer-events", "none");
+        
+    const g = svg.append("g");
+
+    function update() {
+        // 简单的投影转换逻辑
+        const features = newVal.map(d => {
+            const point = map.value.latLngToLayerPoint(new L.LatLng(d.lat, d.lon));
+            return { ...d, x: point.x, y: point.y };
+        });
+
+        if (features.length === 0) return;
+
+        const bounds = map.value.getBounds();
+        const topLeft = map.value.latLngToLayerPoint(bounds.getNorthWest());
+        
+        // 重置 SVG 位置
+        const mapSize = map.value.getSize();
+        svg.attr("width", mapSize.x).attr("height", mapSize.y)
+           .style("left", topLeft.x + "px").style("top", topLeft.y + "px");
+        
+        g.attr("transform", `translate(${-topLeft.x}, ${-topLeft.y})`);
+
+        const circles = g.selectAll("circle").data(features);
+        
+        circles.enter().append("circle")
+            .merge(circles)
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .attr("r", function() {
+                return map.value.getZoom() < 16 ? 4 : 5;
+            })
+            .attr("fill", d => colorAssignments.value[d.type] || '#333') // 使用持久化的颜色映射
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 1)
+            .attr("opacity", 1)
+            .style("pointer-events", "auto") // 关键：开启圆点的鼠标交互
+            .on("mouseover", function(e, d) {
+                d3.select(this).attr("stroke", "black").attr("stroke-width", 2);
+                // 更新提示框内容
+                d3.select('#tooltip-name').text(d.name);
+                d3.select('#tooltip-address').text(d.address);
+                d3.select('#circle-tooltip').style('display', 'block');
+            })
+            .on("mousemove", function(e) {
+                // 跟随鼠标移动
+                const mouseX = e.clientX + 10;
+                const mouseY = e.clientY + 10;
+                d3.select('#circle-tooltip').style('left', `${mouseX}px`).style('top', `${mouseY}px`);
+            })
+            .on("mouseout", function() {
+                // 恢复样式并隐藏提示框
+                d3.select(this).attr("stroke", "#fff").attr("stroke-width", 1);
+                d3.select('#circle-tooltip').style('display', 'none');
+            });
+            
+        circles.exit().remove();
+    }
+
+    map.value.on("zoomend moveend", update);
+    update(); // 初始绘制
+  },
+  { deep: true }
+)
 
 const getPoiMax = async () => {
     const response = await fetch('/api/get_poiNum', {
