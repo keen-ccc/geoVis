@@ -79,6 +79,9 @@ const headings = [
         value:'tab1'
     }
 ]
+const GRID_COLOR = '#377eb8'
+const GRID_HIGHLIGHT_COLOR = '#e41a1c'
+const GRID_PATH_COLOR = 'blue'
 const props1 = {
   checkStrictly: true,
 //   emitPath:false,
@@ -195,11 +198,15 @@ const controlGridLayer = () => {
         map.value.addLayer(heatmapLayer.value)
         heat_bool = 0;
     }
-    if(zoomLevel < 14 && map.value.hasLayer(dotmapLayer.value)){
-        d3.selectAll('#dot').attr('r',2)
-    }
-    else if(map.value.hasLayer(dotmapLayer.value)){
-        d3.selectAll('#dot').attr('r',5)
+    if(map.value.hasLayer(dotmapLayer.value)){
+        const s = zoomLevel < 14 ? 2 : 5
+        d3.selectAll('#dot').attr('d', function(d){
+            const isPostal = (d.properties && d.properties.type && d.properties.type.includes('邮政')) || (d.properties && d.properties.name && d.properties.name.includes('邮政'))
+            const sTri = s + 3
+            const tri = (()=>{const x1 = 0, y1 = -sTri; const x2 = -sTri * 0.866, y2 = sTri * 0.5; const x3 = sTri * 0.866, y3 = sTri * 0.5; return `M ${x1},${y1} L ${x2},${y2} L ${x3},${y3} Z`})()
+            const cir = `M 0,0 m -${s},0 a ${s},${s} 0 1,0 ${2*s},0 a ${s},${s} 0 1,0 -${2*s},0`
+            return isPostal ? tri : cir
+        })
     }
 }
 
@@ -570,19 +577,25 @@ const initDotmapLayer = (data) => {
 
     const geoData = data.map(d => ({type: "Feature", geometry: {type: "Point", coordinates: [d.lon, d.lat]}, properties: d}))
     // console.log(geoData)
-    const feature = g.selectAll("circle")
+    const feature = g.selectAll("path")
         .data(geoData)
-        .enter().append("circle")
+        .enter().append("path")
         .attr('id','dot')
-        .attr("r",(d =>{
-            if(map.value.getZoom() < 14){
-                return 2
-            }
-            else{
-                return 5
-            }
+        .attr("d",(d =>{
+            const s = map.value.getZoom() < 14 ? 2 : 5
+            const sTri = s + 3
+            const isPostal = (d.properties && d.properties.type && d.properties.type.includes('邮政')) || (d.properties && d.properties.name && d.properties.name.includes('邮政'))
+            const tri = (()=>{const x1 = 0, y1 = -sTri; const x2 = -sTri * 0.866, y2 = sTri * 0.5; const x3 = sTri * 0.866, y3 = sTri * 0.5; return `M ${x1},${y1} L ${x2},${y2} L ${x3},${y3} Z`})()
+            const cir = `M 0,0 m -${s},0 a ${s},${s} 0 1,0 ${2*s},0 a ${s},${s} 0 1,0 -${2*s},0`
+            return isPostal ? tri : cir
         }))
+        .style('pointer-events','all')
+        .style('cursor','pointer')
         .attr("fill", (d => {
+            const isPostal = (d.properties && d.properties.type && d.properties.type.includes('邮政')) || (d.properties && d.properties.name && d.properties.name.includes('邮政'))
+            if (isPostal) {
+                return '#e41a1c'
+            }
             if(d.properties && d.properties.type && dataSourceFlag == true){
                 if (d.properties.type.includes('工商') ) {
                     return getDotColors('中国工商银行')
@@ -594,13 +607,9 @@ const initDotmapLayer = (data) => {
                     return getDotColors('交通银行')
                 } else if (d.properties.type.includes('中国银行')) {
                     return getDotColors('中国银行')
-                } else if(d.properties.type.includes('邮政')){
-                    return getDotColors('中国邮政')
                 } else if(d.properties.type.includes('农村商业')){
                     return getDotColors('农村商业银行')
-                }
-                else{
-                    // 不显示
+                } else {
                     return 'none'
                 }
             }
@@ -626,11 +635,7 @@ const initDotmapLayer = (data) => {
                 else if(d.properties.name.includes('韵达')){
                     return getExpressDotColors('韵达')
                 }
-                else if(d.properties.name.includes('邮政')){
-                    return getExpressDotColors('邮政')
-                }
-                else{
-                    // 不显示
+                else {
                     return 'none'
                 }
             }
@@ -691,7 +696,15 @@ const initDotmapLayer = (data) => {
  
         g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")")
 
-        feature.attr("transform", d => {
+        const s = map.value.getZoom() < 14 ? 2 : 5
+        feature.attr('d', d => {
+            const isPostal = (d.properties && d.properties.type && d.properties.type.includes('邮政')) || (d.properties && d.properties.name && d.properties.name.includes('邮政'))
+            const sTri = s + 3
+            const tri = (()=>{const x1 = 0, y1 = -sTri; const x2 = -sTri * 0.866, y2 = sTri * 0.5; const x3 = sTri * 0.866, y3 = sTri * 0.5; return `M ${x1},${y1} L ${x2},${y2} L ${x3},${y3} Z`})()
+            const cir = `M 0,0 m -${s},0 a ${s},${s} 0 1,0 ${2*s},0 a ${s},${s} 0 1,0 -${2*s},0`
+            return isPostal ? tri : cir
+        })
+            .attr("transform", d => {
             //console.log(d)
             if (d.geometry.coordinates[0] !== undefined && d.geometry.coordinates[1] !== undefined) {
                 const point = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[1], d.geometry.coordinates[0]));
@@ -700,7 +713,7 @@ const initDotmapLayer = (data) => {
                 console.error("Invalid LatLng object:", d);
                 return "translate(0,0)";
             }
-        })
+            })
     }
 
     function projectPoint(x, y) {
@@ -821,7 +834,7 @@ const generateGrid = (lat,lon) => {
             return bottomLeft.y - topRight.y;
         })
         .attr('fill', 'none')
-        .attr('stroke', '#737373')
+        .attr('stroke', GRID_COLOR)
         .attr('stroke-width', 2)
         .style('pointer-events', 'all') // 确保矩形可以接收事件
         .on('click', function(event, d) {
@@ -846,12 +859,12 @@ const generateGrid = (lat,lon) => {
     function addHightlight(grid) {
         d3.select(grid).raise();
         d3.select(grid)
-            .attr("stroke", "#4680B0")
+            .attr("stroke", GRID_HIGHLIGHT_COLOR)
             .attr("stroke-width", 3)
     }
     function removeHightlight(grid) {
         d3.select(grid)
-            .attr("stroke", "#737373")
+            .attr("stroke", GRID_COLOR)
             .attr("stroke-width", 2)
     }
 
@@ -1062,22 +1075,22 @@ watch(pathID,()=>{
     selectedGridIDs.forEach(gridID => {
         d3.select(`#grid-${gridID}`)
             .raise()       
-            .attr("stroke", "#4680B0")
+            .attr("stroke", GRID_HIGHLIGHT_COLOR)
             .attr("stroke-width", 2)
         d3.select(`#netgrid-${gridID}`)
             .raise()       
-            .attr("stroke", "#4680B0")
+            .attr("stroke", GRID_HIGHLIGHT_COLOR)
             .attr("stroke-width", 2)
     });
 
     // 根据pathID高亮rect
     d3.select(`#grid-${pathID.value}`)
             .raise()       
-            .attr("stroke", "blue")
+            .attr("stroke", GRID_PATH_COLOR)
             .attr("stroke-width", 2)
     d3.select(`#netgrid-${pathID.value}`)
             .raise()       
-            .attr("stroke", "blue")
+            .attr("stroke", GRID_PATH_COLOR)
             .attr("stroke-width", 2)
     
 })
