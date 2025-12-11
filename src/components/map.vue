@@ -79,6 +79,9 @@ const headings = [
         value:'tab1'
     }
 ]
+const GRID_COLOR = '#377eb8'
+const GRID_HIGHLIGHT_COLOR = '#e41a1c'
+const GRID_PATH_COLOR = 'blue'
 const props1 = {
   checkStrictly: true,
 //   emitPath:false,
@@ -160,6 +163,7 @@ function transformLng(lng, lat) {
 // }
 const controlGridLayer = () => {
     var zoomLevel = map.value.getZoom();
+    console.log("zoomLevel",zoomLevel)
     // if (zoomLevel < 15 && grid_bool == 1) {
     //     // 在缩放级别小于15时，移除图层控制器中的 Layer 3
     //     layerControl.removeLayer(gridLayer.value);
@@ -195,11 +199,15 @@ const controlGridLayer = () => {
         map.value.addLayer(heatmapLayer.value)
         heat_bool = 0;
     }
-    if(zoomLevel < 14 && map.value.hasLayer(dotmapLayer.value)){
-        d3.selectAll('#dot').attr('r',2)
-    }
-    else if(map.value.hasLayer(dotmapLayer.value)){
-        d3.selectAll('#dot').attr('r',5)
+    if(map.value.hasLayer(dotmapLayer.value)){
+        const s = zoomLevel < 14 ? 2 : 5
+        d3.selectAll('#dot').attr('d', function(d){
+            const isPostal = (d.properties && d.properties.type && d.properties.type.includes('邮政')) || (d.properties && d.properties.name && d.properties.name.includes('邮政'))
+            const sTri = s + 3
+            const tri = (()=>{const x1 = 0, y1 = -sTri; const x2 = -sTri * 0.866, y2 = sTri * 0.5; const x3 = sTri * 0.866, y3 = sTri * 0.5; return `M ${x1},${y1} L ${x2},${y2} L ${x3},${y3} Z`})()
+            const cir = `M 0,0 m -${s},0 a ${s},${s} 0 1,0 ${2*s},0 a ${s},${s} 0 1,0 -${2*s},0`
+            return isPostal ? tri : cir
+        })
     }
 }
 
@@ -570,19 +578,25 @@ const initDotmapLayer = (data) => {
 
     const geoData = data.map(d => ({type: "Feature", geometry: {type: "Point", coordinates: [d.lon, d.lat]}, properties: d}))
     // console.log(geoData)
-    const feature = g.selectAll("circle")
+    const feature = g.selectAll("path")
         .data(geoData)
-        .enter().append("circle")
+        .enter().append("path")
         .attr('id','dot')
-        .attr("r",(d =>{
-            if(map.value.getZoom() < 14){
-                return 2
-            }
-            else{
-                return 5
-            }
+        .attr("d",(d =>{
+            const s = map.value.getZoom() < 14 ? 2 : 5
+            const sTri = s + 3
+            const isPostal = (d.properties && d.properties.type && d.properties.type.includes('邮政')) || (d.properties && d.properties.name && d.properties.name.includes('邮政'))
+            const tri = (()=>{const x1 = 0, y1 = -sTri; const x2 = -sTri * 0.866, y2 = sTri * 0.5; const x3 = sTri * 0.866, y3 = sTri * 0.5; return `M ${x1},${y1} L ${x2},${y2} L ${x3},${y3} Z`})()
+            const cir = `M 0,0 m -${s},0 a ${s},${s} 0 1,0 ${2*s},0 a ${s},${s} 0 1,0 -${2*s},0`
+            return isPostal ? tri : cir
         }))
+        .style('pointer-events','all')
+        .style('cursor','pointer')
         .attr("fill", (d => {
+            const isPostal = (d.properties && d.properties.type && d.properties.type.includes('邮政')) || (d.properties && d.properties.name && d.properties.name.includes('邮政'))
+            if (isPostal) {
+                return '#e41a1c'
+            }
             if(d.properties && d.properties.type && dataSourceFlag == true){
                 if (d.properties.type.includes('工商') ) {
                     return getDotColors('中国工商银行')
@@ -594,13 +608,9 @@ const initDotmapLayer = (data) => {
                     return getDotColors('交通银行')
                 } else if (d.properties.type.includes('中国银行')) {
                     return getDotColors('中国银行')
-                } else if(d.properties.type.includes('邮政')){
-                    return getDotColors('中国邮政')
                 } else if(d.properties.type.includes('农村商业')){
                     return getDotColors('农村商业银行')
-                }
-                else{
-                    // 不显示
+                } else {
                     return 'none'
                 }
             }
@@ -626,11 +636,7 @@ const initDotmapLayer = (data) => {
                 else if(d.properties.name.includes('韵达')){
                     return getExpressDotColors('韵达')
                 }
-                else if(d.properties.name.includes('邮政')){
-                    return getExpressDotColors('邮政')
-                }
-                else{
-                    // 不显示
+                else {
                     return 'none'
                 }
             }
@@ -691,7 +697,15 @@ const initDotmapLayer = (data) => {
  
         g.attr("transform", "translate(" + -topLeft[0] + "," + -topLeft[1] + ")")
 
-        feature.attr("transform", d => {
+        const s = map.value.getZoom() < 14 ? 2 : 5
+        feature.attr('d', d => {
+            const isPostal = (d.properties && d.properties.type && d.properties.type.includes('邮政')) || (d.properties && d.properties.name && d.properties.name.includes('邮政'))
+            const sTri = s + 3
+            const tri = (()=>{const x1 = 0, y1 = -sTri; const x2 = -sTri * 0.866, y2 = sTri * 0.5; const x3 = sTri * 0.866, y3 = sTri * 0.5; return `M ${x1},${y1} L ${x2},${y2} L ${x3},${y3} Z`})()
+            const cir = `M 0,0 m -${s},0 a ${s},${s} 0 1,0 ${2*s},0 a ${s},${s} 0 1,0 -${2*s},0`
+            return isPostal ? tri : cir
+        })
+            .attr("transform", d => {
             //console.log(d)
             if (d.geometry.coordinates[0] !== undefined && d.geometry.coordinates[1] !== undefined) {
                 const point = map.value.latLngToLayerPoint(new L.LatLng(d.geometry.coordinates[1], d.geometry.coordinates[0]));
@@ -700,7 +714,7 @@ const initDotmapLayer = (data) => {
                 console.error("Invalid LatLng object:", d);
                 return "translate(0,0)";
             }
-        })
+            })
     }
 
     function projectPoint(x, y) {
@@ -821,7 +835,7 @@ const generateGrid = (lat,lon) => {
             return bottomLeft.y - topRight.y;
         })
         .attr('fill', 'none')
-        .attr('stroke', '#737373')
+        .attr('stroke', GRID_COLOR)
         .attr('stroke-width', 2)
         .style('pointer-events', 'all') // 确保矩形可以接收事件
         .on('click', function(event, d) {
@@ -846,12 +860,12 @@ const generateGrid = (lat,lon) => {
     function addHightlight(grid) {
         d3.select(grid).raise();
         d3.select(grid)
-            .attr("stroke", "#4680B0")
+            .attr("stroke", GRID_HIGHLIGHT_COLOR)
             .attr("stroke-width", 3)
     }
     function removeHightlight(grid) {
         d3.select(grid)
-            .attr("stroke", "#737373")
+            .attr("stroke", GRID_COLOR)
             .attr("stroke-width", 2)
     }
 
@@ -1062,22 +1076,22 @@ watch(pathID,()=>{
     selectedGridIDs.forEach(gridID => {
         d3.select(`#grid-${gridID}`)
             .raise()       
-            .attr("stroke", "#ee848a")
-            .attr("stroke-width", 3)
+            .attr("stroke", GRID_HIGHLIGHT_COLOR)
+            .attr("stroke-width", 2)
         d3.select(`#netgrid-${gridID}`)
             .raise()       
-            .attr("stroke", "#ee848a")
-            .attr("stroke-width", 3)
+            .attr("stroke", GRID_HIGHLIGHT_COLOR)
+            .attr("stroke-width", 2)
     });
 
     // 根据pathID高亮rect
     d3.select(`#grid-${pathID.value}`)
             .raise()       
-            .attr("stroke", "blue")
+            .attr("stroke", GRID_PATH_COLOR)
             .attr("stroke-width", 2)
     d3.select(`#netgrid-${pathID.value}`)
             .raise()       
-            .attr("stroke", "blue")
+            .attr("stroke", GRID_PATH_COLOR)
             .attr("stroke-width", 2)
     
 })
@@ -1175,15 +1189,118 @@ watch(dataSource,(newdataSource)=>{
     }
 })
 
+// watch(
+//   () => poiStore.poiIndustryData,
+//   (newPoiData) => {
+//     console.log("newPoiData length",newPoiData.length)
+//     if (newPoiData.length > 0) {
+//       createPoiDataDotMap(newPoiData);
+//     }
+//   }
+// );
+// 维护颜色分配状态，放在 watch 外部以保持持久性
+const colorAssignments = ref({})
+const colorPalette = ['#3070CC', '#CB1C45']
 watch(
   () => poiStore.poiIndustryData,
-  (newPoiData) => {
-    console.log("newPoiData length",newPoiData.length)
-    if (newPoiData.length > 0) {
-      createPoiDataDotMap(newPoiData);
+  (newVal) => {
+    // 移除旧的散点图层
+    d3.select("#poiDotsLayer").remove();
+
+    if (!newVal || newVal.length === 0) {
+        colorAssignments.value = {}; // 数据清空时重置
+        return;
     }
-  }
-);
+
+    // 获取当前数据中包含的所有唯一行业类型
+    const uniqueTypes = [...new Set(newVal.map(d => d.type))];
+    
+    // 1. 清理：移除不再存在的行业的颜色分配
+    for (const type in colorAssignments.value) {
+        if (!uniqueTypes.includes(type)) {
+            delete colorAssignments.value[type];
+        }
+    }
+
+    // 2. 分配：为新出现的行业分配剩余颜色
+    uniqueTypes.forEach(type => {
+        if (!colorAssignments.value[type]) {
+            // 获取当前已使用的颜色
+            const usedColors = Object.values(colorAssignments.value);
+            // 找到第一个未使用的颜色
+            const availableColor = colorPalette.find(c => !usedColors.includes(c));
+            // 如果有可用颜色则分配，否则默认使用第一个颜色
+            colorAssignments.value[type] = availableColor || colorPalette[0];
+        }
+    });
+
+    const svg = d3.select(map.value.getPanes().overlayPane).append("svg")
+        .attr("id", "poiDotsLayer")
+        .attr("class", "leaflet-zoom-hide")
+        .style("pointer-events", "none");
+        
+    const g = svg.append("g");
+
+    function update() {
+        // 简单的投影转换逻辑
+        const features = newVal.map(d => {
+            const point = map.value.latLngToLayerPoint(new L.LatLng(d.lat, d.lon));
+            return { ...d, x: point.x, y: point.y };
+        });
+
+        if (features.length === 0) return;
+
+        const bounds = map.value.getBounds();
+        const topLeft = map.value.latLngToLayerPoint(bounds.getNorthWest());
+        
+        // 重置 SVG 位置
+        const mapSize = map.value.getSize();
+        svg.attr("width", mapSize.x).attr("height", mapSize.y)
+           .style("left", topLeft.x + "px").style("top", topLeft.y + "px");
+        
+        g.attr("transform", `translate(${-topLeft.x}, ${-topLeft.y})`);
+
+        const circles = g.selectAll("circle").data(features);
+        
+        circles.enter().append("circle")
+            .merge(circles)
+            .attr("cx", d => d.x)
+            .attr("cy", d => d.y)
+            .attr("r", function() {
+                return map.value.getZoom() < 16 ? 4 : 5;
+            })
+            .attr("fill", d => colorAssignments.value[d.type] || '#333') // 使用持久化的颜色映射
+            .attr("stroke", "#fff")
+            .attr("stroke-width", 1)
+            .attr("opacity", 1)
+            .style("pointer-events", "auto") // 关键：开启圆点的鼠标交互
+            .on("mouseover", function(e, d) {
+                d3.select(this).attr("stroke", "black").attr("stroke-width", 2);
+                // 更新提示框内容
+                d3.select('#tooltip-name').text(d.name);
+                d3.select('#tooltip-address').text(d.address);
+                d3.select('#circle-tooltip').style('display', 'block');
+            })
+            .on("mousemove", function(e) {
+                // 跟随鼠标移动
+                const mouseX = e.clientX + 10;
+                const mouseY = e.clientY + 10;
+                d3.select('#circle-tooltip').style('left', `${mouseX}px`).style('top', `${mouseY}px`);
+            })
+            .on("mouseout", function() {
+                // 恢复样式并隐藏提示框
+                d3.select(this).attr("stroke", "#fff").attr("stroke-width", 1);
+                d3.select('#circle-tooltip').style('display', 'none');
+            });
+            
+        circles.exit().remove();
+    }
+
+    map.value.on("zoomend moveend", update);
+    update(); // 初始绘制
+  },
+  { deep: true }
+)
 
 const getPoiMax = async () => {
     const response = await fetch('/api/get_poiNum', {
