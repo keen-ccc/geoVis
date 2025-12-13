@@ -17,11 +17,12 @@
       max-height="450"
       :row-class-name="tableRowClassName"
     >
-      <el-table-column prop="name" label="名称"  />
-      <el-table-column prop="address" label="地址"  />
+      <el-table-column prop="name" label="名称" />
+      <el-table-column prop="address" label="地址" />
       <el-table-column prop="businessscope" label="经营范围" />
       <el-table-column prop="hyclass" label="行业门类" />
       <el-table-column prop="hycode" label="行业代码" />
+      <el-table-column prop="estdate" label="成立日期" /> <!-- 新增这一行 -->
     </el-table>
   </div>
     
@@ -286,8 +287,10 @@ const drawTreeChart = () => {
 
 const exportTable = () => {
   const BOM = "\uFEFF";
-  const headers = "名称,地址,经营范围,行业门类,行业代码\n";
-  const rows = tableData.value.map(d => `${d.name},${d.address},${d.businessscope}`).join("\n");
+  const headers = "名称,地址,经营范围,行业门类,行业代码,成立日期\n";
+  const rows = tableData.value.map(d => 
+    `"${d.name}","${d.address}","${d.businessscope}","${d.hyclass}","${d.hycode}","${d.estdate}"`
+  ).join("\n");
   const csvContent = BOM + headers + rows;
   console.log(csvContent);
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
