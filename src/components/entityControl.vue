@@ -35,11 +35,12 @@
                 <p class="label-title">成立日期</p>
                 <div class="label-content">
                   <el-date-picker
-                    v-model="value1"
+                    v-model="date"
                     type="daterange"
                     range-separator="To"
                     start-placeholder="Start date"
                     end-placeholder="End date"
+                    @clear="applyFilter"
                   />
                 </div>
                 <!-- <p class="label-title">法人信息</p>
@@ -49,17 +50,37 @@
             </div>
         </div>
         <div class="confirm-button">
-            <el-button type="primary" >确认</el-button>
+            <el-button type="primary" @click="applyFilter">确认</el-button>
         </div>
     </div>
 </template>
 
 <script setup>
 import { ref } from 'vue'
+import { useEntityFilterStore } from '@/store/entityFilter'
+
+const entityFilter = useEntityFilterStore()
+
 const checkboxGroup1 = ref(['Shanghai'])
 const yewu = ['定期', '理财', '基金', '保险','信用卡']
-const value1 = ref('')
+const date = ref('')
 const farenInput = ref('')
+
+// 日期筛选功能
+function applyFilter(){
+    const v = date.value
+    if (!v || !Array.isArray(v) || v.length !== 2) {
+        entityFilter.setEstdateRange(null)
+        return
+    }
+    const [s, e] = v
+    const format = (d) => {
+        if (!d) return null
+        if (typeof d === 'string') return d
+        try { return d.toISOString().split('T')[0] } catch { return String(d) }
+    }
+    entityFilter.setEstdateRange([format(s), format(e)])
+}
 </script>
 <style scoped>
 .title-bar{

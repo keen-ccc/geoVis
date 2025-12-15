@@ -81,7 +81,7 @@ const headings = [
 ]
 const GRID_COLOR = '#377eb8'
 const GRID_HIGHLIGHT_COLOR = '#e41a1c'
-const GRID_PATH_COLOR = 'blue'
+const GRID_PATH_COLOR = '#e12afb'
 const props1 = {
   checkStrictly: true,
 //   emitPath:false,

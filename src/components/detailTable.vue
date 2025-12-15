@@ -17,12 +17,12 @@
       max-height="450"
       :row-class-name="tableRowClassName"
     >
-      <el-table-column prop="name" label="名称" />
-      <el-table-column prop="address" label="地址" />
+      <el-table-column prop="name" label="名称"  />
+      <el-table-column prop="address" label="地址"  />
       <el-table-column prop="businessscope" label="经营范围" />
       <el-table-column prop="hyclass" label="行业门类" />
       <el-table-column prop="hycode" label="行业代码" />
-      <el-table-column prop="estdate" label="成立日期" /> <!-- 新增这一行 -->
+      <el-table-column prop="estdate" label="成立日期" />
     </el-table>
   </div>
     
@@ -32,10 +32,19 @@
 import { onMounted, ref, watch,nextTick} from 'vue';
 import { storeToRefs } from 'pinia'
 import {useGridSelectorStore} from '@/store/gridSelector'
+import { useEntityFilterStore } from '@/store/entityFilter'
 import * as d3 from 'd3';
 
 const gridStore = useGridSelectorStore()
 const { bound } = storeToRefs(gridStore);
+const entityFilter = useEntityFilterStore()
+
+// helper to format date-range from store
+const getFilterDates = () => {
+  const r = entityFilter.estdateRange
+  if (!r || !Array.isArray(r) || r.length !== 2) return { start_date: null, end_date: null }
+  return { start_date: r[0], end_date: r[1] }
+}
 
 const EntityDiagram = ref(null);
 let chartInstance = null;
@@ -55,11 +64,14 @@ var leafValueScale = ref(null)
 const customInterpolator = d3.interpolateRgbBasis(["#B8CFE2", "#345E80"]);
 
 const fetchData = async (bound) => {
+  const { start_date, end_date } = getFilterDates()
   const params = {
     start_lon: bound.lonStart,
     start_lat: bound.latStart,
     end_lon: bound.lonEnd,
     end_lat: bound.latEnd,
+    start_date,
+    end_date
   }
 
   try {
@@ -309,89 +321,84 @@ onMounted( async ()=>{
     //drawTreeChart();
 })
 
+const loadAllData = async () => {
+  // 清空旧数据（响应式安全）
+  treeData.value = null;
+  tableData.value = [];
+  filterTableData.value = [];
+  sumValue.value = [];
+  maxValue.value = 0;
+  colorScale.value = null;
+  valueScale.value = null;
+  leafValueScale.value = null;
+
+  const grids = gridStore.grids;
+  const promises = [];
+
+  // 存储临时数据的数组
+  const allTreeData = [];
+  const allTableData = [];
+
+  for (const bound of grids.values()) {
+    promises.push(
+      fetchData(bound).then(({tree, table }) => {
+        allTreeData.push(tree);
+        allTableData.push(...table);
+      })
+    );
+  }
+
+  // 等待所有数据加载完成
+  await Promise.all(promises);
+
+  // 合并树数据
+  if (allTreeData.length > 0) {
+    treeData.value = mergeTreeData(allTreeData);
+  }
+  // 合并表格数据
+  tableData.value = allTableData;
+  filterTableData.value = allTableData;
+
+  if(!treeData.value){
+    d3.select(EntityDiagram.value).selectAll('*').remove();
+    return;
+  }
+
+  // 重新绘制图表
+  if (treeData.value?.children) {
+    maxValue.value = d3.max(treeData.value.children, d => 
+      d3.max(d.children, c => c.value)
+    );
+    colorScale.value = d3.scaleSequential()
+      .domain([0, maxValue.value])
+      .interpolator(customInterpolator);
+    
+    sumValue.value = treeData.value.children.map(d => 
+      d3.sum(d.children, c => c.value)
+    );
+
+    valueScale.value = d3.scaleLinear()
+      .domain([0, d3.max(sumValue.value)])
+      .range([4,7]);
+    
+    leafValueScale.value = d3.scaleLinear()
+      .domain([0, maxValue.value])
+      .range([2,5]);
+
+    drawTreeChart();
+  }
+}
+
+// 当网格或筛选条件变化时加载数据
 watch(
-    () => gridStore.num,
-    async (newVal) => {
-      // 清空旧数据（响应式安全）
-      treeData.value = null;
-      tableData.value = [];
-      filterTableData.value = [];
-      sumValue.value = [];
-      maxValue.value = 0;
-      colorScale.value = null;
-      valueScale.value = null;
-      leafValueScale.value = null;
+  () => gridStore.num,
+  async () => { await loadAllData() }
+)
 
-      const grids = gridStore.grids;
-      const promises = [];
-
-      // 存储临时数据的数组
-      const allTreeData = [];
-      const allTableData = [];
-
-
-      for (const bound of grids.values()) {
-        promises.push(
-          fetchData(bound).then(({tree, table }) => {
-            allTreeData.push(tree);
-            allTableData.push(...table);
-          })
-        );
-      }
-
-      // 等待所有数据加载完成
-      await Promise.all(promises);
-
-      console.log("allTreeData",allTreeData)//没问题
-      // 合并树数据
-      if (allTreeData.length > 0) {
-        treeData.value = mergeTreeData(allTreeData);
-      }
-      console.log("treeData",treeData.value)
-      // 合并表格数据
-      tableData.value = allTableData;
-      filterTableData.value = allTableData;
-
-      //tableData.value = filterTableData.value;
-
-      if(!treeData.value){
-        console.log("treeData为空",treeData.value)
-        d3.select(EntityDiagram.value).selectAll('*').remove();
-        return;
-      }
-
-      // 重新绘制图表
-      if (treeData.value?.children) {
-      
-        maxValue.value = d3.max(treeData.value.children, d => 
-          d3.max(d.children, c => c.value)
-        );
-        colorScale.value = d3.scaleSequential()
-          .domain([0, maxValue.value])
-          .interpolator(customInterpolator);
-        
-        sumValue.value = treeData.value.children.map(d => 
-          d3.sum(d.children, c => c.value)
-        );
-
-        console.log("maxValue",maxValue.value)
-        console.log("sumValue",sumValue.value)
-        
-        valueScale.value = d3.scaleLinear()
-          .domain([0, d3.max(sumValue.value)])
-          .range([4,7]);
-
-        console.log("valueScale",valueScale.value)
-        
-        leafValueScale.value = d3.scaleLinear()
-          .domain([0, maxValue.value])
-          .range([2,5]);
-
-
-        drawTreeChart();
-      }      
-
-    }
+// 当成立日期过滤变化时，重新加载数据
+watch(
+  () => entityFilter.estdateRange,
+  async () => { await loadAllData() }
 )
 </script>
 

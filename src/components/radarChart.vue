@@ -210,7 +210,7 @@ const createRadar = (selectedGridIDs = []) => {
             if (d3.select(this).style('stroke') === 'rgb(126, 168, 203)') {
                 console.log('change color');
                 // 如果是灰色，变成蓝色
-                d3.select(this).style('stroke', '#ee848a').style('stroke-width', 3);
+                d3.select(this).style('stroke', '#e12afb').style('stroke-width', 3);
             }
 
             // 清除之前的 arc 和文本
