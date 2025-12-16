@@ -14,12 +14,21 @@
     <el-table
       :data="filterTableData"
       style="width: 98%;"
-      max-height="450"
+      height="450"
       :row-class-name="tableRowClassName"
     >
       <el-table-column prop="name" label="名称"  />
       <el-table-column prop="address" label="地址"  />
-      <el-table-column prop="businessscope" label="经营范围" />
+      <el-table-column label="经营范围">
+        <template #default="scope">
+          <div :class="isExpanded(scope.$index) ? 'cell-expanded' : 'cell-collapse'">
+            {{ scope.row.businessscope }}
+          </div>
+          <el-link type="primary" @click="toggleExpand(scope.$index)">
+            {{ isExpanded(scope.$index) ? '收起' : '展开' }}
+          </el-link>
+        </template>
+      </el-table-column>
       <el-table-column prop="hyclass" label="行业门类" />
       <el-table-column prop="hycode" label="行业代码" />
       <el-table-column prop="estdate" label="成立日期" />
@@ -50,6 +59,14 @@ const EntityDiagram = ref(null);
 let chartInstance = null;
 const tableData = ref([])
 const filterTableData = ref([])
+const expandedRows = ref(new Set())
+const isExpanded = (i) => expandedRows.value.has(i)
+const toggleExpand = (i) => {
+  const s = expandedRows.value
+  if (s.has(i)) s.delete(i)
+  else s.add(i)
+  expandedRows.value = new Set(s)
+}
 
 const treeData = ref(null)
 
@@ -401,6 +418,18 @@ watch(
   async () => { await loadAllData() }
 )
 </script>
+
+<style scoped>
+.cell-collapse {
+  display: -webkit-box;
+  -webkit-line-clamp: 4;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cell-expanded {
+  white-space: normal;
+}
+</style>
 
 <style scoped>
 .container{
