@@ -1436,8 +1436,8 @@ svg.overlay {
 .leaflet-container{
     opacity: 0.75
 }
-#panel1{
-    width: 400px;
+#rightPanel{
+    width: 32rem;
 }
 .card{
     width: 100%;

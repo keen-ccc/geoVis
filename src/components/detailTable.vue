@@ -13,18 +13,19 @@
 
     <el-table
       :data="filterTableData"
-      style="width: 98%;"
+      style="width: 100%;"
       height="450"
       :row-class-name="tableRowClassName"
+      ref="tableRef"
     >
       <el-table-column prop="name" label="名称"  />
       <el-table-column prop="address" label="地址"  />
       <el-table-column label="经营范围">
         <template #default="scope">
-          <div :class="isExpanded(scope.$index) ? 'cell-expanded' : 'cell-collapse'">
+          <div :class="isExpanded(scope.$index) ? 'cell-expanded' : 'cell-collapse'" :style="collapseStyle(scope.$index)">
             {{ scope.row.businessscope }}
           </div>
-          <el-link type="primary" @click="toggleExpand(scope.$index)">
+          <el-link v-if="shouldShowExpand(scope.$index)" type="primary" @click="toggleExpand(scope.$index)">
             {{ isExpanded(scope.$index) ? '收起' : '展开' }}
           </el-link>
         </template>
@@ -38,7 +39,7 @@
 </template>
 
 <script setup>
-import { onMounted, ref, watch,nextTick} from 'vue';
+import { onMounted, onUnmounted, ref, watch,nextTick} from 'vue';
 import { storeToRefs } from 'pinia'
 import {useGridSelectorStore} from '@/store/gridSelector'
 import { useEntityFilterStore } from '@/store/entityFilter'
@@ -66,6 +67,45 @@ const toggleExpand = (i) => {
   if (s.has(i)) s.delete(i)
   else s.add(i)
   expandedRows.value = new Set(s)
+}
+
+const tableRef = ref(null)
+const rowClampHeights = ref([])
+const rowOverflows = ref([])
+const tableRowClassName = () => ''
+const collapseStyle = (i) => {
+  if (isExpanded(i)) return {}
+  return {
+    maxHeight: (rowClampHeights.value[i] || 24) + 'px',
+    overflow: 'hidden',
+    display: 'block',
+    wordBreak: 'break-word'
+  }
+}
+const shouldShowExpand = (i) => isExpanded(i) || !!rowOverflows.value[i]
+
+const recomputeClamp = () => {
+  const tableEl = tableRef.value?.$el || tableRef.value
+  const rows = tableEl?.querySelectorAll?.('.el-table__body tbody tr') || []
+  const heights = []
+  const overflows = []
+  rows.forEach((tr, idx) => {
+    const nameCell = tr.children?.[0]
+    const addrCell = tr.children?.[1]
+    const nameContent = nameCell?.querySelector?.('.cell') || nameCell
+    const addrContent = addrCell?.querySelector?.('.cell') || addrCell
+    const h1 = nameContent?.clientHeight || 0
+    const h2 = addrContent?.clientHeight || 0
+    const clamp = Math.max(h1, h2)
+    heights[idx] = clamp > 0 ? clamp : 24
+    const bsCell = tr.children?.[2]
+    const bsWrapper = bsCell?.querySelector?.('.cell') || bsCell
+    const bsContent = bsWrapper?.firstElementChild || bsWrapper
+    const full = bsContent?.scrollHeight || 0
+    overflows[idx] = full > (heights[idx] || 24)
+  })
+  rowClampHeights.value = heights
+  rowOverflows.value = overflows
 }
 
 const treeData = ref(null)
@@ -333,6 +373,11 @@ onMounted( async ()=>{
     //await nextTick(); 
     //drawPieChart();
     //drawTreeChart();
+    await nextTick()
+    recomputeClamp()
+})
+onUnmounted(() => {
+  // no-op reserved for future detach if listeners are added
 })
 
 const loadAllData = async () => {
@@ -400,6 +445,9 @@ const loadAllData = async () => {
 
     drawTreeChart();
   }
+
+  await nextTick()
+  recomputeClamp()
 }
 
 // 当网格或筛选条件变化时加载数据
@@ -412,6 +460,14 @@ watch(
 watch(
   () => entityFilter.estdateRange,
   async () => { await loadAllData() }
+)
+
+watch(
+  () => filterTableData.value,
+  async () => {
+    await nextTick()
+    recomputeClamp()
+  }
 )
 </script>
 
@@ -430,12 +486,19 @@ watch(
 .container{
   /* overflow-y: scroll; */
   height: 80vh;
-  width: 25rem;
+  width: 100%;
   justify-content: center;
 }
 .entityClass{
   height: 50%;
-  width: 90%;
+  width: 100%;
+  margin: 0 auto;
+  display: flex;
+  justify-content: center;
+}
+.entityClass > svg{
+  display: block;
+  margin: 0 auto; 
 }
 #tooltip{
   display: none;
