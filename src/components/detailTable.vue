@@ -76,8 +76,7 @@ var colorScale = ref(null)
 // 数量比例尺
 // 统计第二层所有children的value之和
 var sumValue = ref([])
-var valueScale = ref(null)
-var leafValueScale = ref(null)
+var radiusScale = ref(null)
 const customInterpolator = d3.interpolateRgbBasis(["#B8CFE2", "#345E80"]);
 
 const fetchData = async (bound) => {
@@ -247,15 +246,13 @@ const drawTreeChart = () => {
         .attr("r", d => {
           if (d.children) {
             if(d.data.name == '经营主体'){
-              return 5;
+              return 10;
             }
-            return valueScale.value(  // 使用.value访问响应式对象
-              d3.sum(d.children, c => c.data.value)
-            );
+            const s = d3.sum(d.children, c => c.data.value)
+            return radiusScale.value(s)
           }
-          return leafValueScale.value( // 使用.value访问响应式对象
-            d.data.value || 0  // 处理undefined情况
-          );
+          const v = d.data.value || 0
+          return radiusScale.value(v)
         })
         .attr('fill',d => {
             if(d.children){
@@ -346,8 +343,8 @@ const loadAllData = async () => {
   sumValue.value = [];
   maxValue.value = 0;
   colorScale.value = null;
-  valueScale.value = null;
-  leafValueScale.value = null;
+  // valueScale.value = null;
+  // leafValueScale.value = null;
 
   const grids = gridStore.grids;
   const promises = [];
@@ -394,13 +391,12 @@ const loadAllData = async () => {
       d3.sum(d.children, c => c.value)
     );
 
-    valueScale.value = d3.scaleLinear()
-      .domain([0, d3.max(sumValue.value)])
-      .range([4,7]);
-    
-    leafValueScale.value = d3.scaleLinear()
-      .domain([0, maxValue.value])
-      .range([2,5]);
+    const maxLeaf = maxValue.value || 0
+    const maxSum = d3.max(sumValue.value) || 0
+    const maxVal = Math.max(maxLeaf, maxSum)
+    radiusScale.value = d3.scaleSqrt()
+      .domain([0, maxVal])
+      .range([2, 10])
 
     drawTreeChart();
   }
@@ -422,7 +418,6 @@ watch(
 <style scoped>
 .cell-collapse {
   display: -webkit-box;
-  -webkit-line-clamp: 4;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
