@@ -37,9 +37,9 @@
                   <el-date-picker
                     v-model="date"
                     type="daterange"
-                    range-separator="To"
-                    start-placeholder="Start date"
-                    end-placeholder="End date"
+                    range-separator="至"
+                    start-placeholder="开始日期"
+                    end-placeholder="结束日期"
                     @clear="applyFilter"
                   />
                 </div>

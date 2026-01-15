@@ -1,6 +1,7 @@
 import { createApp } from 'vue'
 import App from './App.vue'
 import ElementPlus from 'element-plus'
+import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import 'element-plus/dist/index.css'
 import { createPinia } from 'pinia'
 // import { createPinia } from 'pinia'
@@ -12,6 +13,8 @@ for (let i in Icons) {
     app.component(i, Icons[i])
   }
 app.use(createPinia());
-app.use(ElementPlus);
+app.use(ElementPlus,{
+    locale: zhCn,
+});
 app.mount('#app');
 

@@ -64,7 +64,7 @@ const map =ref(null)
 const city = ref('成都市')
 const bankValue = ref(['中国邮政'])
 const expressValue = ref(['邮政'])
-const dataSource = ref('bank')
+const dataSource = ref('')
 const pathStore = pathGridStore()
 const {pathID} = storeToRefs(pathStore)
 const poiStore = usePoiDetailStore()
@@ -91,9 +91,10 @@ const props1 = {
 }
 //https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/WMTS/tile/1.0.0/Canvas_World_Light_Gray_Base/default/default028mm/{z}/{y}/{x}/
 //https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}
+// https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}
 // 图层
-let baseMapLayer = L.tileLayer('https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}',{
-    maxZoom: 18,
+let baseMapLayer = L.tileLayer('/offline-tiles/{z}/{x}/{y}.png',{
+    maxZoom: 15,
     minZoom: 10,
 })
 let heatmapLayer = ref(null)
@@ -1133,61 +1134,99 @@ watch(expressValue, (newExpressValue) => {
     d3.select(map.value.getPanes().overlayPane).select('#dotmapLayer').selectAll('*').remove()
   }
 })
-watch(dataSource,(newdataSource)=>{
-    //express\bank
-    console.log(newdataSource) 
+watch(dataSource, (newDataSource) => {
+  // newDataSource 直接是 'express' 或 'allBank'
+  if (!['express', 'allBank'].includes(newDataSource)) return;
 
-    if(newdataSource === 'express'){
-        dataSourceFlag = false
-        // 更改poiData为物流数据
-        d3.csv('/express.csv').then((data) => {
-            poiData = data.map((d) => {
-                return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
-            })
-            // console.log(poiData)
-            // 判断是否选中了热力图层???
-            if(heatmapLayer.value && map.value.hasLayer(heatmapLayer.value)){
-                //heatmapLayer.value.remove()
-                console.log(heatmapLayer.value)
-                heatmapLayer.value.setLatLngs(poiData.map(d => [d.lat, d.lon]))
-                //heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 30, blur: 25, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
-            }
-           //图层控件中选择了兴趣点层才更新
-            if(dotmapLayer.value && map.value.hasLayer(dotmapLayer.value)){
-                dotmapLayer.value.clearLayers()
-                updateDotmapLayer(poiData)
-            }
-            if(aggregationLayer.value && map.value.hasLayer(aggregationLayer.value)){
-                aggregationLayer.value.clearLayers()
-                createAggregationLayer()
-            }
-        })
-    }
-    else{
-        dataSourceFlag = true
-        // 更改poiData为银行数据
-        d3.csv('/allBank.csv').then((data) => {
-            poiData = data.map((d) => {
-                return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
-            })
-            if(heatmapLayer.value && map.value.hasLayer(heatmapLayer.value)){
-                //heatmapLayer.value.remove()
-                console.log(heatmapLayer.value)
-                heatmapLayer.value.setLatLngs(poiData.map(d => [d.lat, d.lon]))
-                //heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 30, blur: 25, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
-            }
-            // console.log(poiData)
-            if(dotmapLayer.value && map.value.hasLayer(dotmapLayer.value)){
-                dotmapLayer.value.clearLayers()
-                updateDotmapLayer(poiData)
-            }
-            if(aggregationLayer.value && map.value.hasLayer(aggregationLayer.value)){
-                aggregationLayer.value.clearLayers()
-                createAggregationLayer()
-            }
-        })
-    }
-})
+  dataSourceFlag = (newDataSource === 'allBank'); // allBank → true, express → false
+
+  fetch(`/api/data?source=${newDataSource}`)
+    .then(response => {
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      return response.json();
+    })
+    .then(data => {
+      poiData = data; // 后端已返回结构化数据
+
+      // 更新热力图
+      if (heatmapLayer.value && map.value.hasLayer(heatmapLayer.value)) {
+        heatmapLayer.value.setLatLngs(poiData.map(d => [d.lat, d.lon]));
+      }
+
+      // 更新点图层
+      if (dotmapLayer.value && map.value.hasLayer(dotmapLayer.value)) {
+        dotmapLayer.value.clearLayers();
+        updateDotmapLayer(poiData);
+      }
+
+      // 更新聚合图层
+      if (aggregationLayer.value && map.value.hasLayer(aggregationLayer.value)) {
+        aggregationLayer.value.clearLayers();
+        createAggregationLayer();
+      }
+    })
+    .catch(error => {
+      console.error('加载数据失败:', error);
+      // 可选：清空当前数据或提示用户
+      poiData = [];
+    });
+});
+
+// watch(dataSource,(newdataSource)=>{
+//     //express\bank
+//     console.log(newdataSource) 
+
+//     if(newdataSource === 'express'){
+//         dataSourceFlag = false
+//         // 更改poiData为物流数据
+//         d3.csv('/express.csv').then((data) => {
+//             poiData = data.map((d) => {
+//                 return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
+//             })
+//             // console.log(poiData)
+//             // 判断是否选中了热力图层???
+//             if(heatmapLayer.value && map.value.hasLayer(heatmapLayer.value)){
+//                 //heatmapLayer.value.remove()
+//                 console.log(heatmapLayer.value)
+//                 heatmapLayer.value.setLatLngs(poiData.map(d => [d.lat, d.lon]))
+//                 //heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 30, blur: 25, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
+//             }
+//            //图层控件中选择了兴趣点层才更新
+//             if(dotmapLayer.value && map.value.hasLayer(dotmapLayer.value)){
+//                 dotmapLayer.value.clearLayers()
+//                 updateDotmapLayer(poiData)
+//             }
+//             if(aggregationLayer.value && map.value.hasLayer(aggregationLayer.value)){
+//                 aggregationLayer.value.clearLayers()
+//                 createAggregationLayer()
+//             }
+//         })
+//     }
+//     else{
+//         dataSourceFlag = true
+//         // 更改poiData为银行数据
+//         d3.csv('/allBank.csv').then((data) => {
+//             poiData = data.map((d) => {
+//                 return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
+//             })
+//             if(heatmapLayer.value && map.value.hasLayer(heatmapLayer.value)){
+//                 //heatmapLayer.value.remove()
+//                 console.log(heatmapLayer.value)
+//                 heatmapLayer.value.setLatLngs(poiData.map(d => [d.lat, d.lon]))
+//                 //heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 30, blur: 25, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
+//             }
+//             // console.log(poiData)
+//             if(dotmapLayer.value && map.value.hasLayer(dotmapLayer.value)){
+//                 dotmapLayer.value.clearLayers()
+//                 updateDotmapLayer(poiData)
+//             }
+//             if(aggregationLayer.value && map.value.hasLayer(aggregationLayer.value)){
+//                 aggregationLayer.value.clearLayers()
+//                 createAggregationLayer()
+//             }
+//         })
+//     }
+// })
 
 // watch(
 //   () => poiStore.poiIndustryData,
@@ -1371,7 +1410,7 @@ onMounted(()=>{
             <div class="controlbar-content">
                 <span style="font-weight: bold;margin-right:10px">数据源选择</span>
                 <el-radio-group v-model="dataSource" fill="#98b9d5">
-                    <el-radio-button label="银行" value="bank"></el-radio-button>
+                    <el-radio-button label="银行" value="allBank"></el-radio-button>
                     <el-radio-button label="物流" value="express"></el-radio-button>
                 </el-radio-group>
             </div>
