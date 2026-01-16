@@ -2,15 +2,15 @@ import { defineStore } from 'pinia'
 
 export const useEntityFilterStore = defineStore('entityFilter', {
   state: () => ({
-    // estdateRange: [startDate, endDate] as strings 'YYYY-MM-DD' or null
-    estdateRange: null
+    estdateRange: null,
+    entityTypes: []
   }),
   actions: {
     setEstdateRange(range) {
       this.estdateRange = range
     },
-    clear() {
-      this.estdateRange = null
+    setEntityTypes(types) {
+      this.entityTypes = Array.isArray(types) ? types : []
     }
   }
 })

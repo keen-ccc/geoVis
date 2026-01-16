@@ -43,6 +43,13 @@
                     @clear="applyFilter"
                   />
                 </div>
+                <p class="label-title">主体类型</p>
+                <div class="label-content">
+                  <el-checkbox-group v-model="entityTypes" size="midium">
+                    <el-checkbox-button label="企业" value="企业" />
+                    <el-checkbox-button label="个体工商户" value="个体工商户" />
+                  </el-checkbox-group>
+                </div>
                 <!-- <p class="label-title">法人信息</p>
                 <div class="label-content">
                   <el-input v-model="farenInput" placeholder="请输入法人信息"  style="width: 95%;"></el-input>
@@ -64,22 +71,28 @@ const entityFilter = useEntityFilterStore()
 const checkboxGroup1 = ref(['Shanghai'])
 const yewu = ['定期', '理财', '基金', '保险','信用卡']
 const date = ref('')
+const entityTypes = ref([])
 const farenInput = ref('')
 
-// 日期筛选功能
 function applyFilter(){
+    
     const v = date.value
-    if (!v || !Array.isArray(v) || v.length !== 2) {
-        entityFilter.setEstdateRange(null)
-        return
+    let startDate = null
+    let endDate = null
+    
+    if (v && Array.isArray(v) && v.length === 2) {
+        const [s, e] = v
+        const format = (d) => {
+            if (!d) return null
+            if (typeof d === 'string') return d
+            try { return d.toISOString().split('T')[0] } catch { return String(d) }
+        }
+        startDate = format(s)
+        endDate = format(e)
     }
-    const [s, e] = v
-    const format = (d) => {
-        if (!d) return null
-        if (typeof d === 'string') return d
-        try { return d.toISOString().split('T')[0] } catch { return String(d) }
-    }
-    entityFilter.setEstdateRange([format(s), format(e)])
+    // console.log('entityFilter:', entityTypes.value)
+    entityFilter.setEstdateRange([startDate, endDate])
+    entityFilter.setEntityTypes(entityTypes.value)
 }
 </script>
 <style scoped>

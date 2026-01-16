@@ -127,7 +127,8 @@ const fetchData = async (bound) => {
     end_lon: bound.lonEnd,
     end_lat: bound.latEnd,
     start_date,
-    end_date
+    end_date,
+    entity_types: entityFilter.entityTypes && entityFilter.entityTypes.length > 0 ? entityFilter.entityTypes : null
   }
 
   try {
@@ -460,6 +461,13 @@ watch(
 watch(
   () => entityFilter.estdateRange,
   async () => { await loadAllData() }
+)
+
+// 当主体类型过滤变化时，重新加载数据
+watch(
+  () => entityFilter.entityTypes,
+  async () => { await loadAllData() },
+  { deep: true }
 )
 
 watch(
