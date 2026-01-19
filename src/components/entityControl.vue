@@ -33,14 +33,17 @@
             </div>
             <div>
                 <p class="label-title">成立日期</p>
-                <div class="label-content">
+                <div class="label-content" style="display: flex; align-items: center; gap: 8px;">
                   <el-date-picker
-                    v-model="date"
-                    type="daterange"
-                    range-separator="至"
-                    start-placeholder="开始日期"
-                    end-placeholder="结束日期"
-                    @clear="applyFilter"
+                    v-model="startDate"
+                    type="date"
+                    placeholder="开始日期"
+                  />
+                  至
+                  <el-date-picker
+                    v-model="endDate"
+                    type="date"
+                    placeholder="结束日期"
                   />
                 </div>
                 <p class="label-title">主体类型</p>
@@ -63,36 +66,30 @@
 </template>
 
 <script setup>
-import { ref } from 'vue'
+import { ref, watch } from 'vue'
 import { useEntityFilterStore } from '@/store/entityFilter'
 
 const entityFilter = useEntityFilterStore()
 
 const checkboxGroup1 = ref(['Shanghai'])
 const yewu = ['定期', '理财', '基金', '保险','信用卡']
-const date = ref('')
+const startDate = ref(null)
+const endDate = ref(null)
 const entityTypes = ref([])
-const farenInput = ref('')
+// const farenInput = ref('')
 
-function applyFilter(){
-    
-    const v = date.value
-    let startDate = null
-    let endDate = null
-    
-    if (v && Array.isArray(v) && v.length === 2) {
-        const [s, e] = v
-        const format = (d) => {
-            if (!d) return null
-            if (typeof d === 'string') return d
-            try { return d.toISOString().split('T')[0] } catch { return String(d) }
-        }
-        startDate = format(s)
-        endDate = format(e)
-    }
-    // console.log('entityFilter:', entityTypes.value)
-    entityFilter.setEstdateRange([startDate, endDate])
-    entityFilter.setEntityTypes(entityTypes.value)
+function applyFilter() {
+  const format = (d) => {
+    if (!d) return null
+    if (typeof d === 'string') return d
+    try { return d.toISOString().split('T')[0] } catch { return String(d) }
+  }
+
+  const start = format(startDate.value)
+  const end = format(endDate.value)
+
+  entityFilter.setEstdateRange([start, end])
+  entityFilter.setEntityTypes(entityTypes.value)
 }
 </script>
 <style scoped>
