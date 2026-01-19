@@ -145,6 +145,9 @@ const fetchData = async (bound) => {
         body: JSON.stringify(params)
       })
     ]);
+    // console.log('fetchData params:', params);
+    // console.log('fetchData treeResponse:', await treeResponse.json());
+    // console.log('fetchData tableResponse:', await tableResponse.json());
 
     return {
       tree: await treeResponse.json(),
@@ -157,84 +160,28 @@ const fetchData = async (bound) => {
 }
 
 function mergeTreeData(trees) {
-  if (trees.length === 0) return null;
+  if (!Array.isArray(tableData.value) || tableData.value.length === 0) return null;
 
-  // 创建基准树结构（经营主体作为根节点）
-  const mergedTree = {
-    name: '经营主体',
-    value: 0,  // 临时值，后续替换为实际总数
-    children: []
-  };
+  const classMap = new Map();
 
-  // 递归合并函数（支持三层结构）
-  const deepMerge = (targetNodes, sourceNodes) => {
-    const nodeMap = new Map(targetNodes.map(n => [n.name, n]));
-    
-    for (const sourceNode of sourceNodes) {
-      let targetNode = nodeMap.get(sourceNode.name);
-      
-      if (!targetNode) {
-        // 新节点创建（保留原始结构）
-        targetNode = {
-          ...sourceNode,
-          value: sourceNode.value || 0,
-          children: []
-        };
-        targetNodes.push(targetNode);
-        nodeMap.set(sourceNode.name, targetNode);
-      } else {
-        // 合并数值（处理undefined）
-        targetNode.value += sourceNode.value || 0;
-      }
+  tableData.value.forEach(item => {
+    const cls = item.hyclass || '未知';
+    const code = (item.hycode || '').toString().substring(0, 2) || '00';
 
-      // 递归合并子节点（行业门类→子行业）
-      if (sourceNode.children?.length) {
-        targetNode.children = deepMerge(
-          targetNode.children,
-          sourceNode.children
-        );
-      }
-    }
-    
-    return targetNodes;
-  };
-
-  // 合并所有树的子节点（第二层行业门类）
-  trees.forEach(tree => {
-    mergedTree.children = deepMerge(
-      mergedTree.children,
-      tree.children || []
-    );
+    if (!classMap.has(cls)) classMap.set(cls, new Map());
+    const codeMap = classMap.get(cls);
+    codeMap.set(code, (codeMap.get(code) || 0) + 1);
   });
 
-  // 设置经营主体总数值
-  mergedTree.value = tableData.value.length;
-
-  // 数值校验与修正（处理三层结构）
-  const validateTree = (node) => {
-    if (node.children?.length) {
-      // 行业门类节点：值=子节点总和
-      const sum = d3.sum(node.children, c => c.value);
-      node.value = sum > 0 ? sum : node.value;
-      node.children.forEach(validateTree);
-    } else {
-      // 末端节点：保留原始值
-      node.value = node.value || 0;
-    }
+  const mergedTree = {
+    name: '经营主体',
+    value: tableData.value.length,
+    children: Array.from(classMap.entries()).map(([cls, codeMap]) => {
+      const children = Array.from(codeMap.entries()).map(([code, cnt]) => ({ name: code, value: cnt }));
+      const sum = children.reduce((s, c) => s + (c.value || 0), 0);
+      return { name: cls, value: sum, children };
+    })
   };
-  validateTree(mergedTree);
-
-  // 智能清理空节点（保留结构层级）
-  // const cleanTree = (nodes) => {
-  //   return nodes.filter(n => {
-  //     if (n.children?.length) {
-  //       n.children = cleanTree(n.children);
-  //       return true; // 保留父节点即使自身值为0
-  //     }
-  //     return n.value > 0; // 只过滤末端零值
-  //   });
-  // };
-  // mergedTree.children = cleanTree(mergedTree.children);
 
   return mergedTree;
 }
@@ -411,13 +358,16 @@ const loadAllData = async () => {
   // 等待所有数据加载完成
   await Promise.all(promises);
 
-  // 合并树数据
-  if (allTreeData.length > 0) {
-    treeData.value = mergeTreeData(allTreeData);
-  }
-  // 合并表格数据
+  // 先合并表格数据（chart 合并依赖表格长度）
   tableData.value = allTableData;
   filterTableData.value = allTableData;
+
+  try {
+    treeData.value = mergeTreeData(allTreeData);
+  } catch (err) {
+    console.error('mergeTreeData failed:', err);
+    treeData.value = null;
+  }
 
   if(!treeData.value){
     d3.select(EntityDiagram.value).selectAll('*').remove();
