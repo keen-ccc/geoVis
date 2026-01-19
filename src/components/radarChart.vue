@@ -1,5 +1,5 @@
 <script setup>
-import { ref,onMounted,watch,nextTick} from 'vue'
+import { ref,onMounted,onUnmounted,watch} from 'vue'
 import * as d3 from 'd3'
 import * as echarts from 'echarts';
 import {useGridSelectorStore} from '@/store/gridSelector'
@@ -98,6 +98,7 @@ const createRadar = (selectedGridIDs = []) => {
 
     const svgHeight = radar.value.clientHeight                                                                                                      
     const svgWidth = radar.value.clientWidth
+    const baseFontSize = Math.max(10, Math.min(svgWidth, svgHeight) * 0.018)
     const svg = d3.select(radar.value)
         .append('svg')
         .attr('id','radarSvg')
@@ -237,7 +238,7 @@ const createRadar = (selectedGridIDs = []) => {
                 .attr('y', -radius * 0.1)
                 .attr('text-anchor', 'middle')
                 .attr('dy', '0.5em')
-                .attr('font-size', 12)
+                .attr('font-size', baseFontSize)
                 .attr('fill', '#2B587D')
                 .attr('font-weight', 'bold');
         });
@@ -266,7 +267,7 @@ const createRadar = (selectedGridIDs = []) => {
         .attr('y',(d,i)=>rScale(1)*Math.sin(angleSlice*i-Math.PI*5/6))
         .attr('text-anchor','middle')
         .attr('dy','0.5em')
-        .attr('font-size',12)
+        .attr('font-size',baseFontSize)
         .attr('fill','#666666')
 
     //轴线中点位置添加一个连接所有轴线的圆
@@ -452,8 +453,21 @@ const reset = () => {
     poiDiversityWeight.value = 0.31
     sumWeight.value = 1.23
 }
-onMounted(()=>{
 
+const handleResize = () => {
+    if (!radar.value) {
+        return
+    }
+    const selectedGridIDs = Array.from(gridStore.grids.keys())
+    createRadar(selectedGridIDs)
+}
+
+onMounted(()=>{
+    window.addEventListener('resize', handleResize)
+})
+
+onUnmounted(()=>{
+    window.removeEventListener('resize', handleResize)
 })
 
 // 修改watch函数中的Promise处理逻辑
@@ -627,11 +641,13 @@ watch(
     display: flex;
     flex-direction: row;
     align-items: center;
-    justify-content: right;
+    justify-content: space-between;
 }
 .sliderContainer{
     height: 100%;
-    width: 20%;
+    flex: 1;
+    min-width: 0;
+    margin: 0 0.25rem;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -639,17 +655,45 @@ watch(
 }
 .weightspan{
     margin-bottom: 1rem;
+    font-size: 14px;
+    white-space: nowrap;
 }
 .el-slider{
     --el-slider-main-bg-color: #98B9D5; /* 更改滑块主背景色 */
 }
 .buttonContainer{
     height: 100%;
-    width:25%;
+    width:auto;
+    flex-shrink: 0;
     display:flex;
     flex-direction: column;
     align-items: center;
     justify-content: center;
 
+}
+@media (max-width: 768px) {
+    #bottomDiv{
+        height: auto;
+        flex-direction: column;
+        align-items: stretch;
+    }
+    .radarChart{
+        height: 55%;
+    }
+    .weight{
+        width: 100%;
+        justify-content: space-around;
+        margin-top: 0.5rem;
+    }
+    .sliderContainer{
+        height: auto;
+        margin: 0 0.2rem;
+    }
+    .buttonContainer{
+        width: 100%;
+        flex-direction: row;
+        justify-content: center;
+        margin-top: 0.5rem;
+    }
 }
 </style>

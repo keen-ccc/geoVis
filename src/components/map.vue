@@ -89,6 +89,20 @@ const props1 = {
   label:'label',
   children:'children'
 }
+const getValidLatLngs = (data) => {
+    if (!Array.isArray(data)) return []
+    return data.map(d => {
+        if (!d) return null
+        const lat = parseFloat(
+            d.lat ?? d.latitude ?? d.Lat ?? d.LAT
+        )
+        const lon = parseFloat(
+            d.lon ?? d.lng ?? d.longitude ?? d.Lon ?? d.LON ?? d.LNG
+        )
+        if (Number.isNaN(lat) || Number.isNaN(lon)) return null
+        return [lat, lon]
+    }).filter(Boolean)
+}
 //https://services.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Light_Gray_Base/MapServer/WMTS/tile/1.0.0/Canvas_World_Light_Gray_Base/default/default028mm/{z}/{y}/{x}/
 //https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}
 // https://webrd04.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=7&x={x}&y={y}&z={z}
@@ -333,11 +347,16 @@ const createMap = () => {
             expressValue.value =['邮政']
             updateDotmapLayer(poiData)
         }
-        // if(e.name == '热力层' ){
-        //     console.log(poiData)
-        //     // heatmapLayer.value.remove()
-        //     heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 50, blur: 35, maxZoom: 10,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#81ea8f', 0.7: '#eef48e', 0.85: '#fac581',1:'#ec9073'}}).addTo(map.value)
-        // }
+        if(e.name == '热力层' ){
+            const latlngs = getValidLatLngs(poiData)
+            if (latlngs.length === 0) {
+                console.log('no data')
+                return
+            }
+            if (heatmapLayer.value) {
+                heatmapLayer.value.setLatLngs(latlngs)
+            }
+        }
         if(e.name == '聚合点层'){
             createAggregationLayer()
         }
@@ -1057,11 +1076,9 @@ const createPoiDataDotMap = (data) => {
 const createAggregationLayer = () => {
     //console.log("createTestLayer")
     var markers = L.markerClusterGroup({chunkedLoading:false})
-    // 过滤掉无效的数据点
-    const validPoiData = poiData.filter(d => d && d.lat != null && d.lon != null)
-    // 添加有效的数据点到 markers
-    validPoiData.forEach(d => {
-        markers.addLayer(L.marker([d.lat, d.lon]))
+    const latlngs = getValidLatLngs(poiData)
+    latlngs.forEach(([lat, lon]) => {
+        markers.addLayer(L.marker([lat, lon]))
     })
     aggregationLayer.value.addLayer(markers)
 }
@@ -1150,7 +1167,8 @@ watch(dataSource, (newDataSource) => {
 
       // 更新热力图
       if (heatmapLayer.value && map.value.hasLayer(heatmapLayer.value)) {
-        heatmapLayer.value.setLatLngs(poiData.map(d => [d.lat, d.lon]));
+        const latlngs = getValidLatLngs(poiData)
+        heatmapLayer.value.setLatLngs(latlngs);
       }
 
       // 更新点图层
@@ -1365,33 +1383,35 @@ onMounted(()=>{
 
     d3.csv('/allBank.csv').then((data) => {
         //console.log(data)
-    poiData = data.map((d) => {
-        return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
-    })
+        poiData = data.map((d) => {
+            return {lat: d.lat, lon: d.lon, name: d.name, type: d.type,address:d.address}
+        })
 
-    // d3.json('/grid_1000.geojson').then(function(data) {
-    //     // 处理加载的数据
-    //     // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
-    //     gridData = data
-    //     // initGridLayer(gridData)
-    // }).catch(function(error) {
-    //     console.error("Error loading the GeoJSON file:", error);
-    // });
+        // d3.json('/grid_1000.geojson').then(function(data) {
+        //     // 处理加载的数据
+        //     // console.log("js"+JSON.stringify(data)); // 输出 GeoJSON 数据到控制台
+        //     gridData = data
+        //     // initGridLayer(gridData)
+        // }).catch(function(error) {
+        //     console.error("Error loading the GeoJSON file:", error);
+        // });
 
-    // gridData = JSON.parse(grid_data)
-    heatmapLayer.value = L.heatLayer(poiData.map(d => [d.lat,d.lon]), {radius: 30, blur:20, maxZoom: 14,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#A1EE7E', 0.7: '#FAC57E', 0.9: '#EE9C82'}})
+        console.log(poiData)
 
-    gridLayer.value = L.layerGroup()
-    dotmapLayer.value = L.layerGroup()
-    //initDotmapLayer(poiData)
-    aggregationLayer.value = L.layerGroup()
-    // 更新 overlayMaps
-    overlayMaps["热力层"] = heatmapLayer.value;
-    //overlayMaps["网格层"] = gridLayer.value;
-    overlayMaps["兴趣点层"] = dotmapLayer.value;
-    overlayMaps['聚合点层'] = aggregationLayer.value
-    //console.log(overlayMaps)
-    createMap()
+        const initialLatlngs = getValidLatLngs(poiData)
+        heatmapLayer.value = L.heatLayer(initialLatlngs, {radius: 30, blur:20, maxZoom: 14,gradient:{0.1: '#89dae8', 0.3: '#87eedc', 0.5: '#A1EE7E', 0.7: '#FAC57E', 0.9: '#EE9C82'}})
+
+        gridLayer.value = L.layerGroup()
+        dotmapLayer.value = L.layerGroup()
+        //initDotmapLayer(poiData)
+        aggregationLayer.value = L.layerGroup()
+        // 更新 overlayMaps
+        overlayMaps["热力层"] = heatmapLayer.value;
+        //overlayMaps["网格层"] = gridLayer.value;
+        overlayMaps["兴趣点层"] = dotmapLayer.value;
+        overlayMaps['聚合点层'] = aggregationLayer.value
+        //console.log(overlayMaps)
+        createMap()
     })
 })
 </script>
