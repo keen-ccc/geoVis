@@ -12,14 +12,14 @@
             <div>
                 <p class="label-title">客户类型</p>
                 <div class="label-content">
-                    <el-radio-group v-model="radio1" size="large">
+                    <el-radio-group v-model="radio1" size="large" disabled>
                       <el-radio-button label="邮政客户" value="yz" />
                       <el-radio-button label="非邮政客户" value="not-yz" />
                     </el-radio-group>
                 </div>
                 <p class="label-title">加办业务</p>
                 <div class="label-content">
-                    <el-checkbox-group v-model="checkboxGroup1" size="large">
+                    <el-checkbox-group v-model="checkboxGroup1" size="large" disabled>
                       <el-checkbox-button v-for="yewu in yewu" :key="yewu" :value="yewu">
                         {{ yewu }}
                       </el-checkbox-button>
@@ -79,15 +79,18 @@ const entityTypes = ref([])
 // const farenInput = ref('')
 
 function applyFilter() {
-  const format = (d) => {
-    if (!d) return null
-    if (typeof d === 'string') return d
-    try { return d.toISOString().split('T')[0] } catch { return String(d) }
-  }
-
+    const format = (d) => {
+      if (!d) return null
+      if (typeof d === 'string') return d
+      const date = new Date(d)
+      const year = date.getFullYear()
+      const month = String(date.getMonth() + 1).padStart(2, '0')
+      const day = String(date.getDate()).padStart(2, '0')
+      return `${year}-${month}-${day}`
+    }
   const start = format(startDate.value)
   const end = format(endDate.value)
-
+  console.log(start,end)
   entityFilter.setEstdateRange([start, end])
   entityFilter.setEntityTypes(entityTypes.value)
 }
