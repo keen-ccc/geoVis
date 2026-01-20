@@ -31,7 +31,7 @@
         </template>
       </el-table-column>
       <el-table-column prop="hyclass" label="行业门类" />
-      <el-table-column prop="hycode" label="行业代码" />
+      <el-table-column prop="entityType" label="主体类型" />
       <el-table-column prop="estdate" label="成立日期" />
     </el-table>
   </div>
@@ -301,12 +301,11 @@ const drawTreeChart = () => {
 
 const exportTable = () => {
   const BOM = "\uFEFF";
-  const headers = "名称,地址,经营范围,行业门类,行业代码,成立日期\n";
+  const headers = "名称,地址,经营范围,行业门类,主体类型,成立日期\n";
   const rows = tableData.value.map(d => 
-    `"${d.name}","${d.address}","${d.businessscope}","${d.hyclass}","${d.hycode}","${d.estdate}"`
+    `"${d.name}","${d.address}","${d.businessscope}","${d.hyclass}","${d.entityType}","${d.estdate}"`
   ).join("\n");
   const csvContent = BOM + headers + rows;
-  console.log(csvContent);
   const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
   const link = document.createElement("a");
   const url = URL.createObjectURL(blob);
@@ -315,7 +314,6 @@ const exportTable = () => {
   document.body.appendChild(link);
   link.click();
   document.body.removeChild(link);
-
 }
 onMounted( async ()=>{
     //await nextTick(); 
