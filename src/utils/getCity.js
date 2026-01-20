@@ -246,7 +246,7 @@ export const cities = [
             {label:'彭山区',value:'彭山区',coords:[30.193278,103.872852]},
             {label:'仁寿县',value:'仁寿县',coords:[29.995638,104.133931]},
             {label:'洪雅县',value:'洪雅县',coords:[29.915828,103.365035]},
-            {label:'丹棱县',value:'丹棱县',coords:[29.915828,103.365035]},
+            {label:'丹棱县',value:'丹棱县',coords:[30.014398,103.512859]},
             {label:'青神县',value:'青神县',coords:[29.831302,103.846596]}
         ]
     },
